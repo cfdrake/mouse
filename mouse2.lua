@@ -1,3 +1,13 @@
+-- ~ mouse ~
+-- cartesian gesture sequencer
+-- by: @cfd90
+--
+-- ENC1 x
+-- ENC2 y
+-- ENC3 clock division
+-- KEY2 hold to mute, tap to retrigger
+-- KEY3 toggle clock mod
+
 engine.name = "Thebangs"
 
 MusicUtil = require "musicutil"
@@ -30,34 +40,37 @@ lfo_targets = {
   "pan"
 }
 
+-----------------------------------
+-- Initialization
+-----------------------------------
+
 function init()
-  cs_AMP = controlspec.new(0,1,'lin',0,0.5,'')
-  params:add{type="control",id="amp",controlspec=cs_AMP,
-    action=function(x) engine.amp(x) end}
+  setup_params()
+  setup_clock()
+end
 
-  cs_PW = controlspec.new(0,100,'lin',0,50,'%')
-  params:add{type="control",id="pw",controlspec=cs_PW,
-    action=function(x) engine.pw(x/100) end}
-
-  cs_REL = controlspec.new(0.1,3.2,'lin',0,1.2,'s')
-  params:add{type="control",id="release",controlspec=cs_REL,
-    action=function(x) engine.release(x) end}
-
-  cs_CUT = controlspec.new(50,5000,'exp',0,800,'hz')
-  params:add{type="control",id="cutoff",controlspec=cs_CUT,
-    action=function(x) engine.cutoff(x) end}
-
-  cs_GAIN = controlspec.new(0,4,'lin',0,1,'')
-  params:add{type="control",id="gain",controlspec=cs_GAIN,
-    action=function(x) engine.gain(x) end}
-  
-  cs_PAN = controlspec.new(-1,1, 'lin',0,0,'')
-  params:add{type="control",id="pan",controlspec=cs_PAN,
-    action=function(x) engine.pan(x) end}
-
+function setup_params()
   params:add_separator()
   thebangs.add_additional_synth_params()
+
+  cs_AMP = controlspec.new(0,1,'lin',0,0.5,'')
+  params:add{type="control",id="amp",controlspec=cs_AMP, action=function(x) engine.amp(x) end}
+
+  cs_PW = controlspec.new(0,100,'lin',0,50,'%')
+  params:add{type="control",id="pw",controlspec=cs_PW, action=function(x) engine.pw(x/100) end}
+
+  cs_REL = controlspec.new(0.1,3.2,'lin',0,1.2,'s')
+  params:add{type="control",id="release",controlspec=cs_REL, action=function(x) engine.release(x) end}
+
+  cs_CUT = controlspec.new(50,5000,'exp',0,800,'hz')
+  params:add{type="control",id="cutoff",controlspec=cs_CUT, action=function(x) engine.cutoff(x) end}
+
+  cs_GAIN = controlspec.new(0,4,'lin',0,1,'')
+  params:add{type="control",id="gain",controlspec=cs_GAIN, action=function(x) engine.gain(x) end}
   
+  cs_PAN = controlspec.new(-1,1, 'lin',0,0,'')
+  params:add{type="control",id="pan",controlspec=cs_PAN, action=function(x) engine.pan(x) end}
+
   params:add_separator()
   thebangs.add_voicer_params()
   
@@ -67,9 +80,15 @@ function init()
   
   lfo.init()
   hs.init()
-  
+end
+
+function setup_clock()
   clock_id = clock.run(tick)
 end
+
+-----------------------------------
+-- Playback
+-----------------------------------
 
 function tick()
   while true do
@@ -78,7 +97,9 @@ function tick()
       speed = math.random(2, #speeds - 1)
       redraw()
     end
+    
     clock.sync(1/speeds[speed])
+    
     play(false)
   end
 end
@@ -138,13 +159,17 @@ function actual_play(tx, ty)
   end
 end
 
+-----------------------------------
+-- Norns Input
+-----------------------------------
+
 function enc(n, d)
   if n == 1 then
-    speed = util.clamp(speed + d, 1, #speeds)
-  elseif n == 2 then
     x = util.clamp(x + d, 1, #scale)
-  elseif n == 3 then
+  elseif n == 2 then
     y = util.clamp(y + d, 1, #scale)
+  elseif n == 3 then
+    speed = util.clamp(speed + d, 1, #speeds)
   end
   
   redraw()
@@ -165,9 +190,18 @@ function key(n, z)
   redraw()
 end
 
+-----------------------------------
+-- Drawing
+-----------------------------------
+
 function redraw()
   screen.clear()
-  
+  draw_cursor()
+  draw_params()
+  screen.update()
+end
+
+function draw_cursor()
   screen.level(1)
   screen.move(1 + (x / #scale) * 63, 1)
   screen.line(1 + (x / #scale) * 63, 63)
@@ -179,42 +213,56 @@ function redraw()
   screen.stroke()
   screen.rect(-1 + (x / #scale) * 63, -1 + (63 - (y / #scale) * 63), 4, 4)
   screen.stroke()
+end
+
+function draw_params()
+  level_label = 15
+  level_value = 3
+  label_x = 68
   
-  screen.move(68, 10)
-  screen.level(15)
+  screen.move(label_x, 10)
+  screen.level(level_label)
   screen.text("x: ")
-  screen.level(3)
-  screen.text(x)
-  screen.move(98, 10)
-  screen.level(15)
+  screen.level(level_value)
+  screen.text(MusicUtil.note_num_to_name(scale[x]))
+  
+  screen.move(label_x + 30, 10)
+  screen.level(level_label)
   screen.text("y: ")
-  screen.level(3)
-  screen.text(y)
-  screen.move(68, 20)
-  screen.level(15)
+  screen.level(level_value)
+  screen.text(MusicUtil.note_num_to_name(scale[y]))
+  
+  screen.move(label_x, 20)
+  screen.level(level_label)
   screen.text("div: ")
-  screen.level(3)
+  screen.level(level_value)
   screen.text("1/" .. speeds[speed])
-  screen.move(68, 30)
-  screen.level(15)
+  
+  screen.move(label_x, 30)
+  screen.level(level_label)
   screen.text("divmod: ")
-  screen.level(3)
+  screen.level(level_value)
   screen.text(speed_mod and "y" or "n")
-  screen.move(68, 40)
-  screen.level(15)
+  
+  screen.move(label_x, 40)
+  screen.level(level_label)
   screen.text("mute: ")
-  screen.level(3)
+  screen.level(level_value)
   screen.text(mute and "y" or "n")
-  screen.move(68, 50)
-  screen.level(15)
+  
+  screen.move(label_x, 50)
+  screen.level(level_label)
   screen.text("voices: ")
-  screen.level(3)
+  screen.level(level_value)
   screen.text(enables[1] and "1" or "")
   screen.text(enables[2] and "2" or "")
   screen.text(enables[3] and "3" or "")
   screen.text(enables[4] and "4" or "")
-  screen.update()
 end
+
+-----------------------------------
+-- LFO Management
+-----------------------------------
 
 function lfo.process()
   for i=1,4 do

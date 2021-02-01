@@ -1,9 +1,13 @@
 -- half sec loop 75% decay
+-- 
+-- @cfd90 edits:
+-- start with volume at 0%
 
 local sc = {}
 
 function sc.init()
   print("starting halfsecond")
+  
 	audio.level_cut(1.0)
 	audio.level_adc_cut(1)
 	audio.level_eng_cut(1)
@@ -33,6 +37,7 @@ function sc.init()
 	softcut.filter_rq(1, 2.0);
 
   params:add_separator()
+  
   params:add{id="delay", name="delay", type="control", 
     controlspec=controlspec.new(0,1,'lin',0,0.0,""),
     action=function(x) softcut.level(1,x) end}

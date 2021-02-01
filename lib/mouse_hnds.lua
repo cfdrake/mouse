@@ -39,7 +39,6 @@ function lfo.process()
 end
 ------------------------------------
 
-
 function lfo.scale(old_value, old_min, old_max, new_min, new_max)
   -- scale ranges
   local old_range = old_max - old_min
@@ -54,16 +53,13 @@ function lfo.scale(old_value, old_min, old_max, new_min, new_max)
   return new_value
 end
 
-
 local function make_sine(n)
   return 1 * math.sin(((tau / 100) * (lfo[n].counter)) - (tau / (lfo[n].freq)))
 end
 
-
 local function make_square(n)
   return make_sine(n) >= 0 and 1 or -1
 end
-
 
 local function make_sh(n)
   local polarity = make_square(n)
@@ -74,7 +70,6 @@ local function make_sh(n)
     return lfo[n].prev
   end
 end
-
 
 function lfo.init()
   for i = 1, number_of_outputs do
@@ -120,6 +115,5 @@ function lfo.init()
   end
   lfo_metro:start()
 end
-
 
 return lfo
