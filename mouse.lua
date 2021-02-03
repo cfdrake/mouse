@@ -10,11 +10,11 @@
 --
 -- KEY1 alt
 --
--- ALT + ENC1 voice mode
--- ALT + ENC2 enable voices
--- ALT + ENC3 tranpose amount (?)
--- ALT + KEY2 transpose down (?)
--- ALT + KEY3 transpose up (?)
+-- ALT + ENC1 scale
+-- ALT + ENC2 voice mode
+-- ALT + ENC3 pattern index
+-- ALT + KEY2 (?)
+-- ALT + KEY3 pattern toggle
 
 -----------------------------------
 -- Includes
@@ -68,6 +68,18 @@ local is_alt_held = false
 local level_label = 15
 local level_value = 3
 local label_x = 68
+
+local pattern_index = 1
+local pattern_counter_x = 1
+local pattern_counter_y = 1
+local running_pattern = false
+local patterns = {
+  { x = { 0, 3 }, y = { 7, 3 } },
+  { x = { 0, 4, 2 }, y = { 0, 3, 7, 3 } },
+  { x = { 0, -4 }, y = { 0, 1, 2, 3, 4, 5 } },
+  { x = { 0, 1, 4, 6 }, y = { 0, 5, 3, 4, 2, 1, 8 } },
+  { x = { 0, 6, 0, 3, 3, 2, 2, 1 }, y = { 0, 2, 12, 14, 4, 2, 2 } },
+}
 
 -----------------------------------
 -- Initialization
@@ -173,6 +185,27 @@ local function play_note(note)
 end
 
 local function allocate_and_play(tx, ty)
+  local x = x
+  local y = y
+  
+  if running_pattern then
+    local pattern = patterns[pattern_index]
+  
+    pattern_counter_x = pattern_counter_x + 1
+    pattern_counter_y = pattern_counter_y + 1
+    
+    if pattern_counter_x > #pattern["x"] then
+      pattern_counter_x = 1
+    end
+    
+    if pattern_counter_y > #pattern["y"] then
+      pattern_counter_y = 1
+    end
+  
+    x = x + pattern["x"][pattern_counter_x]
+    y = y + pattern["y"][pattern_counter_y]
+  end
+  
   if voice_mode == 1 then
     -- Chords + melody allocation mode
     if tx then
@@ -264,7 +297,10 @@ function tick()
     local rate = speeds[speed]
     clock.sync(1/rate)
     
-    play(false)
+    -- Is there a better place to put this logic?
+    local force = running_pattern and not mute
+    
+    play(force)
   end
 end
 
@@ -279,7 +315,7 @@ function enc(n, d)
     elseif n == 2 then
       params:delta("voice_mode", d)
     elseif n == 3 then
-      print("todo")
+      pattern_index = util.clamp(pattern_index + d, 1, #patterns)
     end
   else
     if n == 1 then
@@ -303,10 +339,10 @@ function key(n, z)
   end
   
   if is_alt_held then
-    if n == 2 then
+    if n == 2 and z == 1 then
       print("todo")
-    elseif n == 3 then
-      print("todo")
+    elseif n == 3 and z == 1 then
+      running_pattern = not running_pattern
     end
   else
     if n == 2 then
@@ -403,6 +439,18 @@ function draw_alt_params()
   screen.text(voice_modes[voice_mode])
   
   screen.move(label_x, 30)
+  screen.level(level_label)
+  screen.text("ptn #: ")
+  screen.level(level_value)
+  screen.text(pattern_index)
+  
+  screen.move(label_x, 40)
+  screen.level(level_label)
+  screen.text("ptn running: ")
+  screen.level(level_value)
+  screen.text(running_pattern and "y" or "n")
+  
+  screen.move(label_x, 50)
   screen.level(level_label)
   screen.text("voices: ")
   screen.level(level_value)
