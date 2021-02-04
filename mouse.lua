@@ -46,6 +46,8 @@ local speed_mod = false
 
 local enables = {true, true, true, true}
 
+local midi_out = nil
+
 local clock_id = nil
 
 local voice_mode = 1
@@ -80,6 +82,8 @@ local patterns = {
   { x = { 0, 1, 4, 6 }, y = { 0, 5, 3, 4, 2, 1, 8 } },
   { x = { 0, 6, 0, 3, 3, 2, 2, 1 }, y = { 0, 2, 12, 14, 4, 2, 2 } },
 }
+
+local output_options = {"thebangs", "midi"}
 
 -----------------------------------
 -- Initialization
@@ -123,6 +127,10 @@ local function setup_params()
   params:add{type="option", id="enables_3", name="voice 3 enabled", options={"no", "yes"}, default=2, action=function(x) enables[3] = (x == 2) end}
   params:add{type="option", id="enables_4", name="voice 4 enabled", options={"no", "yes"}, default=2, action=function(x) enables[4] = (x == 2) end}
   
+  params:add_separator("output")
+  
+  params:add{type="option", id="output_mode", name="output", options=output_options, default=1}
+  
   params:add_separator("synth")
   thebangs.add_additional_synth_params()
 
@@ -155,6 +163,10 @@ local function setup_params()
   lfo.init()
 end
 
+local function setup_midi()
+  midi_out = midi.connect()
+end
+
 local function setup_clock()
   clock_id = clock.run(tick)
 end
@@ -171,6 +183,7 @@ function init()
   setup_scales()
   setup_params()
   build_scale()
+  setup_midi()
   setup_clock()
   print_logo()
 end
@@ -179,9 +192,21 @@ end
 -- Playback
 -----------------------------------
 
+local function stop_note(note)
+  clock.sleep(1/10.0)
+  midi_out:note_off(note, nil)
+end
+
 local function play_note(note)
-  freq = MusicUtil.note_num_to_freq(note)
-  engine.hz(freq)
+  local output_mode = params:get("output_mode")
+  
+  if output_mode == 1 then
+    local freq = MusicUtil.note_num_to_freq(note)
+    engine.hz(freq)
+  elseif output_mode == 2 then
+    midi_out:note_on(note, 100)
+    clock.run(stop_note, note)
+  end
 end
 
 local function allocate_and_play(tx, ty)
