@@ -539,18 +539,18 @@ function draw_alt_params()
   
   screen.move(label_x, 40)
   screen.level(level_label)
-  screen.text("ptn running: ")
-  screen.level(level_value)
-  screen.text(running_pattern and "y" or "n")
-  
-  screen.move(label_x, 50)
-  screen.level(level_label)
   screen.text("voices: ")
   screen.level(level_value)
   screen.text(enables[1] and "1" or "")
   screen.text(enables[2] and "2" or "")
   screen.text(enables[3] and "3" or "")
   screen.text(enables[4] and "4" or "")
+  
+  screen.move(label_x, 50)
+  screen.level(level_label)
+  screen.text("ptn running: ")
+  screen.level(level_value)
+  screen.text(running_pattern and "y" or "n")
 end
 
 function draw_params()
