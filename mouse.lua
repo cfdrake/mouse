@@ -204,6 +204,10 @@ local function allocate_and_play(tx, ty)
   
     x = x + pattern["x"][pattern_counter_x]
     y = y + pattern["y"][pattern_counter_y]
+    
+    -- It seems like there could be a better place to put this.
+    -- We just want to redraw here because there is a pattern advance.
+    redraw()
   end
   
   if voice_mode == 1 then
@@ -400,11 +404,19 @@ local function draw_default_params()
   screen.level(level_value)
   screen.text(MusicUtil.note_num_to_name(scale[x]))
   
-  screen.move(label_x + 30, 10)
+  if running_pattern then
+    screen.text(patterns[pattern_index]["x"][pattern_counter_x])
+  end
+  
+  screen.move(label_x + 34, 10)
   screen.level(level_label)
   screen.text("y: ")
   screen.level(level_value)
   screen.text(MusicUtil.note_num_to_name(scale[y]))
+  
+  if running_pattern then
+    screen.text(patterns[pattern_index]["y"][pattern_counter_y])
+  end
   
   screen.move(label_x, 20)
   screen.level(level_label)
