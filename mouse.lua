@@ -158,7 +158,7 @@ end
 
 local function setup_params()
   params:add_separator()
-  params:add_group("MOUSE", 10)
+  params:add_group("MOUSE", 11)
   
   params:add_separator("scale")
   params:add{type="option", id="scale_mode", name="scale mode", options=scale_names, default=11, action=function() build_scale() end}
@@ -172,6 +172,7 @@ local function setup_params()
   
   params:add_separator("output")
   params:add{type="option", id="output_mode", name="output", options=output_options, default=1}
+  params:add{type="number", id="output_midi_channel", name="output midi channel", default=1, min=1, max=16}
   
   params:add_group("SYNTH", 14)
   
@@ -239,9 +240,9 @@ end
 -- Playback
 -----------------------------------
 
-local function stop_note(note)
+local function stop_note(note, ch)
   clock.sleep(1/10.0)
-  midi_out:note_off(note, nil)
+  midi_out:note_off(note, nil, ch)
 end
 
 local function play_note(note)
@@ -251,8 +252,10 @@ local function play_note(note)
     local freq = MusicUtil.note_num_to_freq(note)
     engine.hz(freq)
   elseif output_mode == 2 then
-    midi_out:note_on(note, 100)
-    clock.run(stop_note, note)
+    local ch = params:get("output_midi_channel")
+    
+    midi_out:note_on(note, 100, ch)
+    clock.run(stop_note, note, ch)
   end
 end
 
