@@ -56,6 +56,7 @@ local voice_modes = {"melody", "pairs"}
 local lfo_targets = {
   "none",
   "pw",
+  "attack",
   "release",
   "cutoff",
   "pan",
@@ -595,21 +596,24 @@ function lfo.process()
     if params:get(i .. "lfo") == 2 then
       -- LFOs run from -1 to 1. Params which do not take this range
       -- (i.e. not pan) need to be scaled to their respective ranges.
+      
       if target == 2 then
         params:set("pw", lfo.scale(lfo[i].slope, -1, 1, 0, 100))
       elseif target == 3 then
-        params:set("release", lfo.scale(lfo[i].slope, -1, 1, 0.1, 3.2))
+        params:set("attack", lfo.scale(lfo[i].slope, -1, 1, 0.0001, 1))
       elseif target == 4 then
-        params:set("cutoff", lfo.scale(lfo[i].slope, -1, 1, 50, 5000))
+        params:set("release", lfo.scale(lfo[i].slope, -1, 1, 0.1, 3.2))
       elseif target == 5 then
-        params:set("pan", lfo[i].slope)
+        params:set("cutoff", lfo.scale(lfo[i].slope, -1, 1, 50, 5000))
       elseif target == 6 then
-        params:set("delay", lfo.scale(lfo[i].slope, -1, 1, 0, 1))
+        params:set("pan", lfo[i].slope)
       elseif target == 7 then
-        params:set("delay_rate", lfo.scale(lfo[i].slope, -1, 1, 0.5, 2))
+        params:set("delay", lfo.scale(lfo[i].slope, -1, 1, 0, 1))
       elseif target == 8 then
-        params:set("delay_feedback", lfo.scale(lfo[i].slope, -1, 1, 0, 1))
+        params:set("delay_rate", lfo.scale(lfo[i].slope, -1, 1, 0.5, 2))
       elseif target == 9 then
+        params:set("delay_feedback", lfo.scale(lfo[i].slope, -1, 1, 0, 1))
+      elseif target == 10 then
         params:set("delay_pan", lfo[i].slope)
       end
     end
