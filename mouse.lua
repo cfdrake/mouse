@@ -13,7 +13,7 @@
 -- ALT + ENC1 scale
 -- ALT + ENC2 voice mode
 -- ALT + ENC3 pattern index
--- ALT + KEY2 (?)
+-- ALT + KEY2 voice enable toggle
 -- ALT + KEY3 pattern toggle
 
 -----------------------------------
@@ -84,6 +84,46 @@ local patterns = {
 }
 
 local output_options = {"thebangs", "midi"}
+
+-----------------------------------
+-- Helpers
+-----------------------------------
+
+-- from: luacode.org
+function deepcompare(t1, t2, ignore_mt)
+  local ty1 = type(t1)
+  local ty2 = type(t2)
+  
+  if ty1 ~= ty2 then
+    return false
+  end
+  
+  if ty1 ~= 'table' and ty2 ~= 'table' then
+    return t1 == t2
+  end
+  
+  local mt = getmetatable(t1)
+  
+  if not ignore_mt and mt and mt.__eq then
+    return t1 == t2
+  end
+  
+  for k1,v1 in pairs(t1) do
+    local v2 = t2[k1]
+    if v2 == nil or not deepcompare(v1,v2) then
+      return false
+    end
+  end
+  
+  for k2,v2 in pairs(t2) do
+    local v1 = t1[k2]
+    if v1 == nil or not deepcompare(v1,v2) then
+      return false
+    end
+  end
+  
+  return true
+end
 
 -----------------------------------
 -- Initialization
@@ -369,7 +409,16 @@ function key(n, z)
   
   if is_alt_held then
     if n == 2 and z == 1 then
-      print("todo")
+      -- If all enabled, switch to one melody one chord.
+      -- If one melody one chord, switch to all enabled.
+      -- If user-customized state, switch to all enabled.
+      if deepcompare(enables, {true, true, true, true}, true) then
+        enables = {true, false, false, true}
+      elseif deepcompare(enables, {true, false, false, true}, true) then
+        enables = {true, true, true, true}
+      else
+        enables = {true, true, true, true}
+      end
     elseif n == 3 and z == 1 then
       running_pattern = not running_pattern
     end
