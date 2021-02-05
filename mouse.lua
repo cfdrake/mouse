@@ -220,6 +220,11 @@ local function setup_clock()
   clock_id = clock.run(tick)
 end
 
+local function setup_mouse()
+  mouse = hid.connect()
+  mouse.event = mouse_event
+end
+
 local function print_logo()
   msgs = {"cheese, please!", "meep", "have fun!"}
   
@@ -234,6 +239,7 @@ function init()
   build_scale()
   setup_midi()
   setup_clock()
+  setup_mouse()
   print_logo()
 end
 
@@ -382,6 +388,24 @@ function tick()
     
     play(force)
   end
+end
+
+-----------------------------------
+-- HID Input
+-----------------------------------
+
+function mouse_event(typ, code, val)
+  val = math.floor(val / 20)
+
+  if code == 0 then
+    x = util.clamp(x + val, 1, #scale)
+  elseif code == 1 then
+    y = util.clamp(y - val, 1, #scale)
+  elseif code == 272 then
+    mute = not mute
+  end
+  
+  redraw()
 end
 
 -----------------------------------
