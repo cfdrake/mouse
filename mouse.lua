@@ -1,5 +1,5 @@
 -- ~ mouse ~
--- music mouse inspired instrument and sequencer
+-- an instrument and sequencer inspired by music mouse
 -- by: @cfd90
 --
 -- ENC1 x
@@ -33,6 +33,7 @@ local hs = include("lib/mouse_halfsecond")
 
 local scale = {}
 local scale_names = {}
+local note_names = {"c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", "b"}
 
 local x = 1
 local y = 1
@@ -131,7 +132,12 @@ end
 -----------------------------------
 
 local function build_scale()
-  scale = MusicUtil.generate_scale_of_length(0, string.lower(MusicUtil.SCALES[params:get("scale_mode")].name), 127)
+  -- Lua indices start from 1, but root note transposition starts from zero.
+  -- i.e. "c" is at index 1, but transposition amount should be 0.
+  local scale_mode = params:get("scale_mode")
+  local root_note = params:get("root_note") - 1
+  
+  scale = MusicUtil.generate_scale_of_length(root_note, string.lower(MusicUtil.SCALES[scale_mode].name), 127)
   
   x = math.floor(#scale/2)
   y = math.floor(#scale/2)
@@ -158,10 +164,11 @@ end
 
 local function setup_params()
   params:add_separator()
-  params:add_group("MOUSE", 12)
+  params:add_group("MOUSE", 13)
   
   params:add_separator("scale")
   params:add{type="option", id="scale_mode", name="scale mode", options=scale_names, default=11, action=function() build_scale() end}
+  params:add{type="option", id="root_note", name="root note", options=note_names, default=1, action=function() build_scale() end}
   
   params:add_separator("voices")
   params:add{type="option", id="voice_mode", name="voice mode", options=voice_modes, default=1, action=function(x) voice_mode = x end}
