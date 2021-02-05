@@ -158,7 +158,7 @@ end
 
 local function setup_params()
   params:add_separator()
-  params:add_group("MOUSE", 11)
+  params:add_group("MOUSE", 12)
   
   params:add_separator("scale")
   params:add{type="option", id="scale_mode", name="scale mode", options=scale_names, default=11, action=function() build_scale() end}
@@ -172,7 +172,8 @@ local function setup_params()
   
   params:add_separator("output")
   params:add{type="option", id="output_mode", name="output", options=output_options, default=1}
-  params:add{type="number", id="output_midi_channel", name="output midi channel", default=1, min=1, max=16}
+  params:add{type="number", id="output_midi_channel_x", name="output midi channel (x)", default=1, min=1, max=16}
+  params:add{type="number", id="output_midi_channel_y", name="output midi channel (y)", default=1, min=1, max=16}
   
   params:add_group("SYNTH", 14)
   
@@ -245,14 +246,14 @@ local function stop_note(note, ch)
   midi_out:note_off(note, nil, ch)
 end
 
-local function play_note(note)
+local function play_note(note, axis)
   local output_mode = params:get("output_mode")
   
   if output_mode == 1 then
     local freq = MusicUtil.note_num_to_freq(note)
     engine.hz(freq)
   elseif output_mode == 2 then
-    local ch = params:get("output_midi_channel")
+    local ch = params:get("output_midi_channel_" .. axis)
     
     midi_out:note_on(note, 100, ch)
     clock.run(stop_note, note, ch)
@@ -291,17 +292,17 @@ local function allocate_and_play(tx, ty)
       -- Play chord
       if enables[1] then
         note = scale[x]
-        play_note(note)
+        play_note(note, "x")
       end
       
       if x + 2 <= #scale and enables[2] then
         note = scale[x + 2]
-        play_note(note)
+        play_note(note, "x")
       end
       
       if x - 3 >= 1 and enables[3] then
         note = scale[x - 3]
-        play_note(note)
+        play_note(note, "x")
       end
     end
     
@@ -309,7 +310,7 @@ local function allocate_and_play(tx, ty)
       -- Play melody
       if enables[4] then
         note = scale[y]
-        play_note(note)
+        play_note(note, "y")
       end
     end
   elseif voice_mode == 2 then
@@ -318,12 +319,12 @@ local function allocate_and_play(tx, ty)
       -- Play voice 1
       if enables[1] then
         note = scale[x]
-        play_note(note)
+        play_note(note, "x")
       end
       
       if x + 4 <= #scale and enables[2] then
         note = scale[x + 4]
-        play_note(note)
+        play_note(note, "x")
       end
     end
     
@@ -331,12 +332,12 @@ local function allocate_and_play(tx, ty)
       -- Play voice 2
       if x - 3 >= 1 and enables[3] then
         note = scale[y - 3]
-        play_note(note)
+        play_note(note, "y")
       end
       
       if enables[4] then
         note = scale[y]
-        play_note(note)
+        play_note(note, "y")
       end
     end
   end
