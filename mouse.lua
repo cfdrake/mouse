@@ -31,29 +31,28 @@ local hs = include("lib/mouse_halfsecond")
 -- State
 -----------------------------------
 
+-- Scale and params value helpers.
 local scale = {}
 local scale_names = {}
 local note_names = {"c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", "b"}
+local speeds = {1, 2, 4, 8}
+local voice_modes = {"melody", "pairs"}
+local output_options = {"thebangs", "midi"}
 
+-- Local sequencer state.
 local x = 1
 local y = 1
 local last_x = 1
 local last_y = 1
 local mute = false
+local is_alt_held = false
 
-local speed = 3
-local speeds = {1, 2, 4, 8}
-local speed_mod = false
-
-local enables = {true, true, true, true}
-
-local midi_out = nil
-
+-- MIDI and clock state.
+local midi_x_out = nil
+local midi_y_out = nil
 local clock_id = nil
 
-local voice_mode = 1
-local voice_modes = {"melody", "pairs"}
-
+-- LFO targets.
 local lfo_targets = {
   "none",
   "pw",
@@ -67,16 +66,14 @@ local lfo_targets = {
   "delay_pan"
 }
 
-local is_alt_held = false
-
+-- Drawing vars.
 local level_label = 15
 local level_value = 3
 local label_x = 68
 
-local pattern_index = 1
+-- Pattern state.
 local pattern_counter_x = 1
 local pattern_counter_y = 1
-local running_pattern = false
 local patterns = {
   { x = { 0, 3 }, y = { 7, 3 } },
   { x = { 0, 4, 2 }, y = { 0, 3, 7, 3 } },
@@ -85,46 +82,42 @@ local patterns = {
   { x = { 0, 6, 0, 3, 3, 2, 2, 1 }, y = { 0, 2, 12, 14, 4, 2, 2 } },
 }
 
-local output_options = {"thebangs", "midi"}
-
 -----------------------------------
 -- Helpers
 -----------------------------------
 
--- from: luacode.org
-function deepcompare(t1, t2, ignore_mt)
-  local ty1 = type(t1)
-  local ty2 = type(t2)
+local bool_param_options={"yes", "no"}
+
+local function string_for_bool_param(p)
+  local val = params:get(p)
   
-  if ty1 ~= ty2 then
-    return false
+  return bool_param_options[val]
+end
+
+local function value_for_bool_param(p)
+  local val = params:get(p)
+  
+  return val == 1
+end
+
+local function toggle_bool_param(p)
+  local val = params:get(p)
+  
+  params:set(p, val == 2 and 1 or 2)
+end
+
+local function set_bool_param(p, val)
+  params:set(p, val and 1 or 2)
+end
+
+local function scale_name(i, shorten)
+  local name = string.lower(MusicUtil.SCALES[i].name)
+  
+  if shorten then
+    name = name:gsub("[aeiou]", "")
   end
   
-  if ty1 ~= 'table' and ty2 ~= 'table' then
-    return t1 == t2
-  end
-  
-  local mt = getmetatable(t1)
-  
-  if not ignore_mt and mt and mt.__eq then
-    return t1 == t2
-  end
-  
-  for k1,v1 in pairs(t1) do
-    local v2 = t2[k1]
-    if v2 == nil or not deepcompare(v1,v2) then
-      return false
-    end
-  end
-  
-  for k2,v2 in pairs(t2) do
-    local v1 = t1[k2]
-    if v1 == nil or not deepcompare(v1,v2) then
-      return false
-    end
-  end
-  
-  return true
+  return name
 end
 
 -----------------------------------
@@ -146,41 +139,46 @@ local function build_scale()
   last_y = y
 end
 
-local function scale_name(i, shorten)
-  local name = string.lower(MusicUtil.SCALES[i].name)
-  
-  if shorten then
-    name = name:gsub("[aeiou]", "")
-  end
-  
-  return name
-end
-
 local function setup_scales()
   for i = 1, #MusicUtil.SCALES do
     table.insert(scale_names, scale_name(i, false))
   end
 end
 
+local function setup_midi()
+  midi_x_out = midi.connect(params:get("midi_port_x"))
+  midi_y_out = midi.connect(params:get("midi_port_y"))
+end
+
 local function setup_params()
   params:add_separator()
-  params:add_group("MOUSE", 13)
+  params:add_group("MOUSE", 21)
   
   params:add_separator("scale")
   params:add{type="option", id="scale_mode", name="scale mode", options=scale_names, default=11, action=function() build_scale() end}
   params:add{type="option", id="root_note", name="root note", options=note_names, default=1, action=function() build_scale() end}
   
+  params:add_separator("clock")
+  params:add{type="option", id="speed", name="clock division", options=speeds, default=3}
+  params:add{type="option", id="speed_mod", name="modulate clock division", options=bool_param_options, default=2}
+  
   params:add_separator("voices")
-  params:add{type="option", id="voice_mode", name="voice mode", options=voice_modes, default=1, action=function(x) voice_mode = x end}
-  params:add{type="option", id="enables_1", name="voice 1 enabled", options={"no", "yes"}, default=2, action=function(x) enables[1] = (x == 2) end}
-  params:add{type="option", id="enables_2", name="voice 2 enabled", options={"no", "yes"}, default=2, action=function(x) enables[2] = (x == 2) end}
-  params:add{type="option", id="enables_3", name="voice 3 enabled", options={"no", "yes"}, default=2, action=function(x) enables[3] = (x == 2) end}
-  params:add{type="option", id="enables_4", name="voice 4 enabled", options={"no", "yes"}, default=2, action=function(x) enables[4] = (x == 2) end}
+  params:add{type="option", id="voice_mode", name="voice mode", options=voice_modes, default=1}
+  params:add{type="option", id="enables_1", name="voice 1 enabled", options=bool_param_options, default=1}
+  params:add{type="option", id="enables_2", name="voice 2 enabled", options=bool_param_options, default=1}
+  params:add{type="option", id="enables_3", name="voice 3 enabled", options=bool_param_options, default=1}
+  params:add{type="option", id="enables_4", name="voice 4 enabled", options=bool_param_options, default=1}
+  
+  params:add_separator("patterns")
+  params:add{type="option", id="running_pattern", name="pattern enabled", options=bool_param_options, default=2}
+  params:add{type="number", id="pattern_index", name="selected pattern", min=1, max=#patterns, default=1}
   
   params:add_separator("output")
-  params:add{type="option", id="output_mode", name="output", options=output_options, default=1}
-  params:add{type="number", id="output_midi_channel_x", name="output midi channel (x)", default=1, min=1, max=16}
-  params:add{type="number", id="output_midi_channel_y", name="output midi channel (y)", default=1, min=1, max=16}
+  params:add{type="option", id="output_mode", name="output mode", options=output_options, default=1}
+  params:add{type="number", id="midi_port_x", name="midi port (x)", default=1, min=1, max=16, action=function(x) setup_midi() end}
+  params:add{type="number", id="midi_channel_x", name="midi channel (x)", default=1, min=1, max=16}
+  params:add{type="number", id="midi_port_y", name="midi port (y)", default=1, min=1, max=16, action=function(x) setup_midi() end}
+  params:add{type="number", id="midi_channel_y", name="midi channel (y)", default=1, min=1, max=16}
   
   params:add_group("SYNTH", 14)
   
@@ -196,7 +194,7 @@ local function setup_params()
   local cs_REL = controlspec.new(0.1, 3.2, "lin", 0, 1.2, "s")
   params:add{type="control", id="release", controlspec=cs_REL, action=function(x) engine.release(x) end}
 
-  local cs_CUT = controlspec.new(50, 5000, "exp", 0, 800, "hz")
+  local cs_CUT = controlspec.new(50, 12000, "exp", 0, 12000, "hz")
   params:add{type="control", id="cutoff", controlspec=cs_CUT, action=function(x) engine.cutoff(x) end}
 
   local cs_GAIN = controlspec.new(0, 4, "lin", 0, 1, "")
@@ -217,10 +215,8 @@ local function setup_params()
   
   params:add_group("LFOs", 28)
   lfo.init()
-end
-
-local function setup_midi()
-  midi_out = midi.connect()
+  
+  params:bang()
 end
 
 local function setup_clock()
@@ -254,9 +250,9 @@ end
 -- Playback
 -----------------------------------
 
-local function stop_note(note, ch)
+local function stop_note(note, mdev, ch)
   clock.sleep(1/10.0)
-  midi_out:note_off(note, nil, ch)
+  mdev:note_off(note, nil, ch)
 end
 
 local function play_note(note, axis)
@@ -266,16 +262,20 @@ local function play_note(note, axis)
     local freq = MusicUtil.note_num_to_freq(note)
     engine.hz(freq)
   elseif output_mode == 2 then
-    local ch = params:get("output_midi_channel_" .. axis)
+    local mdev = axis == "x" and midi_x_out or midi_y_out
+    local ch = params:get("midi_channel_" .. axis)
     
-    midi_out:note_on(note, 100, ch)
-    clock.run(stop_note, note, ch)
+    mdev:note_on(note, 100, ch)
+    clock.run(stop_note, note, mdev, ch)
   end
 end
 
 local function allocate_and_play(tx, ty)
   local x = x
   local y = y
+  
+  local running_pattern = value_for_bool_param("running_pattern")
+  local pattern_index = params:get("pattern_index")
   
   if running_pattern then
     local pattern = patterns[pattern_index]
@@ -299,21 +299,23 @@ local function allocate_and_play(tx, ty)
     redraw()
   end
   
+  local voice_mode = params:get("voice_mode")
+  
   if voice_mode == 1 then
     -- Chords + melody allocation mode
     if tx then
       -- Play chord
-      if enables[1] then
+      if value_for_bool_param("enables_1") then
         note = scale[x]
         play_note(note, "x")
       end
       
-      if x + 2 <= #scale and enables[2] then
+      if x + 2 <= #scale and value_for_bool_param("enables_2") then
         note = scale[x + 2]
         play_note(note, "x")
       end
       
-      if x - 3 >= 1 and enables[3] then
+      if x - 3 >= 1 and value_for_bool_param("enables_3") then
         note = scale[x - 3]
         play_note(note, "x")
       end
@@ -321,7 +323,7 @@ local function allocate_and_play(tx, ty)
     
     if ty then
       -- Play melody
-      if enables[4] then
+      if value_for_bool_param("enables_4") then
         note = scale[y]
         play_note(note, "y")
       end
@@ -330,12 +332,12 @@ local function allocate_and_play(tx, ty)
     -- Pairs allocation mode
     if tx then
       -- Play voice 1
-      if enables[1] then
+      if value_for_bool_param("enables_1") then
         note = scale[x]
         play_note(note, "x")
       end
       
-      if x + 4 <= #scale and enables[2] then
+      if x + 4 <= #scale and value_for_bool_param("enables_2") then
         note = scale[x + 4]
         play_note(note, "x")
       end
@@ -343,12 +345,12 @@ local function allocate_and_play(tx, ty)
     
     if ty then
       -- Play voice 2
-      if x - 3 >= 1 and enables[3] then
+      if x - 3 >= 1 and value_for_bool_param("enables_3") then
         note = scale[y - 3]
         play_note(note, "y")
       end
       
-      if enables[4] then
+      if value_for_bool_param("enables_4") then
         note = scale[y]
         play_note(note, "y")
       end
@@ -381,17 +383,18 @@ end
 
 function tick()
   while true do
-    if speed_mod then
+    if params:get("speed_mod") == 1 then
       -- Keep it musical...
-      speed = math.random(2, #speeds - 1)
+      params:set("speed", math.random(2, #speeds - 1))
       redraw()
     end
     
+    local speed = params:get("speed")
     local rate = speeds[speed]
     clock.sync(1/rate)
     
     -- Is there a better place to put this logic?
-    local force = running_pattern and not mute
+    local force = value_for_bool_param("running_pattern") and not mute
     
     play(force)
   end
@@ -426,7 +429,7 @@ function enc(n, d)
     elseif n == 2 then
       params:delta("voice_mode", d)
     elseif n == 3 then
-      pattern_index = util.clamp(pattern_index + d, 1, #patterns)
+      params:delta("pattern_index", d)
     end
   else
     if n == 1 then
@@ -437,7 +440,7 @@ function enc(n, d)
       y = util.clamp(y + d, 1, #scale)
     elseif n == 3 then
       -- Clock division
-      speed = util.clamp(speed + d, 1, #speeds)
+      params:delta("speed", d)
     end
   end
   
@@ -454,15 +457,24 @@ function key(n, z)
       -- If all enabled, switch to one melody one chord.
       -- If one melody one chord, switch to all enabled.
       -- If user-customized state, switch to all enabled.
-      if deepcompare(enables, {true, true, true, true}, true) then
-        enables = {true, false, false, true}
-      elseif deepcompare(enables, {true, false, false, true}, true) then
-        enables = {true, true, true, true}
+      local enables_1 = value_for_bool_param("enables_1")
+      local enables_2 = value_for_bool_param("enables_2")
+      local enables_3 = value_for_bool_param("enables_3")
+      local enables_4 = value_for_bool_param("enables_4")
+      
+      if enables_1 and enables_2 and enables_3 and enables_4 then
+        set_bool_param("enables_1", true)
+        set_bool_param("enables_2", false)
+        set_bool_param("enables_3", false)
+        set_bool_param("enables_4", true)
       else
-        enables = {true, true, true, true}
+        set_bool_param("enables_1", true)
+        set_bool_param("enables_2", true)
+        set_bool_param("enables_3", true)
+        set_bool_param("enables_4", true)
       end
     elseif n == 3 and z == 1 then
-      running_pattern = not running_pattern
+      toggle_bool_param("running_pattern")
     end
   else
     if n == 2 then
@@ -476,7 +488,7 @@ function key(n, z)
       end
     elseif n == 3 and z == 1 then
       -- Toggle clock mod
-      speed_mod = not speed_mod
+      toggle_bool_param("speed_mod")
     end
   end
   
@@ -514,6 +526,10 @@ local function draw_cursor()
 end
 
 local function draw_default_params()
+  local running_pattern = value_for_bool_param("running_pattern")
+  local pattern_index = params:get("pattern_index")
+  local speed = params:get("speed")
+  
   screen.move(label_x, 10)
   screen.level(level_label)
   screen.text("x: ")
@@ -550,10 +566,13 @@ local function draw_default_params()
   screen.level(level_label)
   screen.text("divmod: ")
   screen.level(level_value)
-  screen.text(speed_mod and "y" or "n")
+  screen.text(string_for_bool_param("speed_mod"))
 end
 
 function draw_alt_params()
+  local voice_mode = params:get("voice_mode")
+  local pattern_index = params:get("pattern_index")
+  
   screen.move(label_x, 10)
   screen.level(level_label)
   screen.text("scale: ")
@@ -576,16 +595,16 @@ function draw_alt_params()
   screen.level(level_label)
   screen.text("voices: ")
   screen.level(level_value)
-  screen.text(enables[1] and "1" or "")
-  screen.text(enables[2] and "2" or "")
-  screen.text(enables[3] and "3" or "")
-  screen.text(enables[4] and "4" or "")
+  screen.text(value_for_bool_param("enables_1") and "1" or "")
+  screen.text(value_for_bool_param("enables_2") and "2" or "")
+  screen.text(value_for_bool_param("enables_3") and "3" or "")
+  screen.text(value_for_bool_param("enables_4") and "4" or "")
   
   screen.move(label_x, 50)
   screen.level(level_label)
   screen.text("ptn running: ")
   screen.level(level_value)
-  screen.text(running_pattern and "y" or "n")
+  screen.text(string_for_bool_param("running_pattern"))
 end
 
 function draw_params()
