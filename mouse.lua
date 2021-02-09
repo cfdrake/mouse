@@ -52,6 +52,9 @@ local midi_x_out = nil
 local midi_y_out = nil
 local clock_id = nil
 
+-- Grid state.
+local g = nil
+
 -- LFO targets.
 local lfo_targets = {
   "none",
@@ -152,11 +155,12 @@ end
 
 local function setup_params()
   params:add_separator()
-  params:add_group("MOUSE", 21)
+  params:add_group("MOUSE", 22)
   
   params:add_separator("scale")
   params:add{type="option", id="scale_mode", name="scale mode", options=scale_names, default=11, action=function() build_scale() end}
   params:add{type="option", id="root_note", name="root note", options=note_names, default=1, action=function() build_scale() end}
+  params:add{type="number", id="transpose_interval", name="transposition interval", min=1, max=12, default=3}
   
   params:add_separator("clock")
   params:add{type="option", id="speed", name="clock division", options=speeds, default=3}
@@ -228,6 +232,12 @@ local function setup_mouse()
   mouse.event = mouse_event
 end
 
+local function setup_grid()
+  g = grid.connect()
+  g.key = grid_key
+  grid_redraw()
+end
+
 local function print_logo()
   msgs = {"cheese, please!", "meep", "have fun!"}
   
@@ -242,6 +252,7 @@ function init()
   build_scale()
   setup_midi()
   setup_clock()
+  setup_grid()
   setup_mouse()
   print_logo()
 end
@@ -387,6 +398,7 @@ function tick()
       -- Keep it musical...
       params:set("speed", math.random(2, #speeds - 1))
       redraw()
+      grid_redraw()
     end
     
     local speed = params:get("speed")
@@ -419,6 +431,75 @@ function mouse_event(typ, code, val)
 end
 
 -----------------------------------
+-- Grid Input
+-----------------------------------
+
+function grid_key(_x, _y, z)
+  if z == 0 then
+    return
+  end
+  
+  if _y == 1 then
+    if _x >= 1 and _x <= 4 then
+      toggle_bool_param("enables_" .. _x)
+    elseif _x == 7 then
+      params:set("voice_mode", 1)
+    elseif _x == 8 then
+      params:set("voice_mode", 2)
+    end
+  elseif _y == 2 then
+    if _x == 1 then
+      x = util.clamp(x - params:get("transpose_interval"), 1, #scale)
+    elseif _x == 2 then
+      y = util.clamp(y - params:get("transpose_interval"), 1, #scale)
+    elseif _x == 7 then
+      y = util.clamp(y + params:get("transpose_interval"), 1, #scale)
+    elseif _x == 8 then
+      x = util.clamp(x + params:get("transpose_interval"), 1, #scale)
+    end
+  elseif _y == 5 then
+    if _x >= 1 and _x <= #speeds then
+      params:set("speed", _x)
+    elseif _x == 8 then
+      toggle_bool_param("speed_mod")
+    end
+  elseif _y == 8 then
+    if _x >= 1 and _x <= #patterns then
+      params:set("pattern_index", _x)
+    elseif _x == 8 then
+      toggle_bool_param("running_pattern")
+    end
+  end
+  
+  redraw()
+  grid_redraw()
+end
+
+function grid_redraw()
+  g:all(0)
+  
+  g:led(1, 1, value_for_bool_param("enables_1") and 15 or 0)
+  g:led(2, 1, value_for_bool_param("enables_2") and 15 or 0)
+  g:led(3, 1, value_for_bool_param("enables_3") and 15 or 0)
+  g:led(4, 1, value_for_bool_param("enables_4") and 15 or 0)
+  g:led(7, 1, params:get("voice_mode") == 1 and 15 or 0)
+  g:led(8, 1, params:get("voice_mode") == 2 and 15 or 0)
+  
+  g:led(1, 2, 15)
+  g:led(2, 2, 15)
+  g:led(7, 2, 15)
+  g:led(8, 2, 15)
+  
+  g:led(params:get("speed"), 5, 15)
+  g:led(8, 5, value_for_bool_param("speed_mod") and 15 or 0)
+  
+  g:led(params:get("pattern_index"), 8, 15)
+  g:led(8, 8, value_for_bool_param("running_pattern") and 15 or 0)
+  
+  g:refresh()
+end
+
+-----------------------------------
 -- Encoder / Button Input
 -----------------------------------
 
@@ -445,6 +526,7 @@ function enc(n, d)
   end
   
   redraw()
+  grid_redraw()
 end
 
 function key(n, z)
@@ -493,6 +575,7 @@ function key(n, z)
   end
   
   redraw()
+  grid_redraw()
 end
 
 -----------------------------------
