@@ -554,7 +554,7 @@ local function draw_default_params()
   screen.level(level_label)
   screen.text("div: ")
   screen.level(level_value)
-  screen.text("1/" .. speeds[speed])
+  screen.text("x" .. speeds[speed])
   
   screen.move(label_x, 30)
   screen.level(level_label)
