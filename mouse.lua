@@ -253,7 +253,7 @@ function init()
   setup_midi()
   setup_clock()
   setup_grid()
-  setup_mouse()
+  --setup_mouse()  -- Revist this, a bit experimental and crazy at the moment.
   print_logo()
 end
 
