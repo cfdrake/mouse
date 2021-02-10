@@ -155,7 +155,7 @@ end
 
 local function setup_params()
   params:add_separator()
-  params:add_group("MOUSE", 24)
+  params:add_group("MOUSE", 26)
   
   params:add_separator("scale")
   params:add{type="option", id="scale_mode", name="scale mode", options=scale_names, default=11, action=function() build_scale() end}
@@ -182,9 +182,11 @@ local function setup_params()
   params:add{type="number", id="midi_port_x", name="midi port (x)", default=1, min=1, max=16, action=function(x) setup_midi() end}
   params:add{type="number", id="midi_channel_x", name="midi channel (x)", default=1, min=1, max=16}
   params:add{type="number", id="midi_note_length_x", name="midi note length (x)", default=100, min=1, max=1000}
+  params:add{type="number", id="midi_note_probability_x", name="midi note probability (x)", default=100, min=1, max=100}
   params:add{type="number", id="midi_port_y", name="midi port (y)", default=1, min=1, max=16, action=function(x) setup_midi() end}
   params:add{type="number", id="midi_channel_y", name="midi channel (y)", default=1, min=1, max=16}
   params:add{type="number", id="midi_note_length_y", name="midi note length (y)", default=100, min=1, max=1000}
+  params:add{type="number", id="midi_note_probability_y", name="midi note probability (y)", default=100, min=1, max=100}
   
   params:add_group("SYNTH", 14)
   
@@ -276,12 +278,19 @@ end
 local function play_midi_note(note, axis)
   local mdev = axis == "x" and midi_x_out or midi_y_out
   local ch = params:get("midi_channel_" .. axis)
+
   local user_note_len = params:get("midi_note_length_" .. axis) / 1000.0  -- ms to s
   local clock_pulse_len = (60.0 / params:get("clock_tempo")) - (1/10.0)  -- give some space
   local note_len = math.min(user_note_len, clock_pulse_len)
-  
-  mdev:note_on(note, 100, ch)
-  clock.run(stop_note, note, mdev, ch, note_len)
+
+  local rand = math.random(1, 100)
+  local prob = params:get("midi_note_probability_" .. axis)
+  local should_trigger = rand <= prob
+
+  if should_trigger then
+    mdev:note_on(note, 100, ch)
+    clock.run(stop_note, note, mdev, ch, note_len)
+  end
 end
 
 local function play_note(note, axis)
