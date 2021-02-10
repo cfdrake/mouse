@@ -37,7 +37,7 @@ local scale_names = {}
 local note_names = {"c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", "b"}
 local speeds = {1, 2, 4, 8}
 local voice_modes = {"melody", "pairs"}
-local output_options = {"thebangs", "midi"}
+local output_options = {"thebangs", "midi", "thebangs + midi"}
 
 -- Local sequencer state.
 local x = 1
@@ -155,7 +155,7 @@ end
 
 local function setup_params()
   params:add_separator()
-  params:add_group("MOUSE", 22)
+  params:add_group("MOUSE", 24)
   
   params:add_separator("scale")
   params:add{type="option", id="scale_mode", name="scale mode", options=scale_names, default=11, action=function() build_scale() end}
@@ -181,8 +181,10 @@ local function setup_params()
   params:add{type="option", id="output_mode", name="output mode", options=output_options, default=1}
   params:add{type="number", id="midi_port_x", name="midi port (x)", default=1, min=1, max=16, action=function(x) setup_midi() end}
   params:add{type="number", id="midi_channel_x", name="midi channel (x)", default=1, min=1, max=16}
+  params:add{type="number", id="midi_note_length_x", name="midi note length (x)", default=100, min=1, max=1000}
   params:add{type="number", id="midi_port_y", name="midi port (y)", default=1, min=1, max=16, action=function(x) setup_midi() end}
   params:add{type="number", id="midi_channel_y", name="midi channel (y)", default=1, min=1, max=16}
+  params:add{type="number", id="midi_note_length_y", name="midi note length (y)", default=100, min=1, max=1000}
   
   params:add_group("SYNTH", 14)
   
@@ -261,23 +263,37 @@ end
 -- Playback
 -----------------------------------
 
-local function stop_note(note, mdev, ch)
-  clock.sleep(1/10.0)
+local function stop_note(note, mdev, ch, note_len)
+  clock.sleep(note_len)
   mdev:note_off(note, nil, ch)
+end
+
+local function play_engine_note(note)
+  local freq = MusicUtil.note_num_to_freq(note)
+  engine.hz(freq)
+end
+
+local function play_midi_note(note, axis)
+  local mdev = axis == "x" and midi_x_out or midi_y_out
+  local ch = params:get("midi_channel_" .. axis)
+  local user_note_len = params:get("midi_note_length_" .. axis) / 1000.0  -- ms to s
+  local clock_pulse_len = (60.0 / params:get("clock_tempo")) - (1/10.0)  -- give some space
+  local note_len = math.min(user_note_len, clock_pulse_len)
+  
+  mdev:note_on(note, 100, ch)
+  clock.run(stop_note, note, mdev, ch, note_len)
 end
 
 local function play_note(note, axis)
   local output_mode = params:get("output_mode")
   
   if output_mode == 1 then
-    local freq = MusicUtil.note_num_to_freq(note)
-    engine.hz(freq)
+    play_engine_note(note)
   elseif output_mode == 2 then
-    local mdev = axis == "x" and midi_x_out or midi_y_out
-    local ch = params:get("midi_channel_" .. axis)
-    
-    mdev:note_on(note, 100, ch)
-    clock.run(stop_note, note, mdev, ch)
+    play_midi_note(note, axis)
+  elseif output_mode == 3 then
+    play_engine_note(note)
+    play_midi_note(note, axis)
   end
 end
 
