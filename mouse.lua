@@ -46,6 +46,8 @@ local last_x = 1
 local last_y = 1
 local mute = false
 local is_alt_held = false
+local input_mode = 1
+local input_modes = {"norm", "1hand"}
 
 -- MIDI and clock state.
 local midi_x_out = nil
@@ -460,39 +462,55 @@ end
 -----------------------------------
 
 function grid_key(_x, _y, z)
-  if z == 0 then
-    return
-  end
-  
-  if _y == 1 then
-    if _x >= 1 and _x <= 4 then
-      toggle_bool_param("enables_" .. _x)
-    elseif _x == 7 then
-      params:set("voice_mode", 1)
-    elseif _x == 8 then
-      params:set("voice_mode", 2)
-    end
-  elseif _y == 2 then
+  -- Momentary, does not require keypress.
+  -- This allows for single-hand Grid and single-hand Norns use.
+  if _y == 7 then
     if _x == 1 then
-      x = util.clamp(x - params:get("transpose_interval"), 1, #scale)
+      input_mode = (z == 1 and 2 or 1)
     elseif _x == 2 then
-      y = util.clamp(y - params:get("transpose_interval"), 1, #scale)
-    elseif _x == 7 then
-      y = util.clamp(y + params:get("transpose_interval"), 1, #scale)
-    elseif _x == 8 then
-      x = util.clamp(x + params:get("transpose_interval"), 1, #scale)
+      mute = (z == 1)
+      
+      if z == 1 then
+        play(true)
+      end
     end
-  elseif _y == 5 then
-    if _x >= 1 and _x <= #speeds then
-      params:set("speed", _x)
-    elseif _x == 8 then
-      toggle_bool_param("speed_mod")
-    end
-  elseif _y == 8 then
-    if _x >= 1 and _x <= #patterns then
-      params:set("pattern_index", _x)
-    elseif _x == 8 then
-      toggle_bool_param("running_pattern")
+  end
+
+  if z == 1 then
+    if _y == 1 then
+      if _x >= 1 and _x <= 4 then
+        toggle_bool_param("enables_" .. _x)
+      elseif _x == 7 then
+        params:set("voice_mode", 1)
+      elseif _x == 8 then
+        params:set("voice_mode", 2)
+      end
+    elseif _y == 2 then
+      if _x == 1 then
+        x = util.clamp(x - params:get("transpose_interval"), 1, #scale)
+      elseif _x == 2 then
+        y = util.clamp(y - params:get("transpose_interval"), 1, #scale)
+      elseif _x == 7 then
+        y = util.clamp(y + params:get("transpose_interval"), 1, #scale)
+      elseif _x == 8 then
+        x = util.clamp(x + params:get("transpose_interval"), 1, #scale)
+      end
+    elseif _y == 5 then
+      if _x >= 1 and _x <= #speeds then
+        params:set("speed", _x)
+      elseif _x == 8 then
+        toggle_bool_param("speed_mod")
+      end
+    elseif _y == 8 then
+      if _x >= 1 and _x <= #patterns then
+        params:set("pattern_index", _x)
+        
+        -- Reset pattern indices.
+        pattern_counter_x = 1
+        pattern_counter_y = 1
+      elseif _x == 8 then
+        toggle_bool_param("running_pattern")
+      end
     end
   end
   
@@ -514,6 +532,9 @@ function grid_redraw()
   g:led(2, 2, 15)
   g:led(7, 2, 15)
   g:led(8, 2, 15)
+  
+  g:led(1, 7, input_mode == 2 and 15 or 0)
+  g:led(2, 7, mute and 15 or 0)
   
   g:led(params:get("speed"), 5, 15)
   g:led(8, 5, value_for_bool_param("speed_mod") and 15 or 0)
@@ -539,11 +560,18 @@ function enc(n, d)
     end
   else
     if n == 1 then
-      -- Set x coordinate
-      x = util.clamp(x + d, 1, #scale)
+      if input_mode == 1 then
+        -- Set x coordinate
+        x = util.clamp(x + d, 1, #scale)
+      else
+        -- Set y coordinate
+        y = util.clamp(y + d, 1, #scale)
+      end
     elseif n == 2 then
-      -- Set y coordinate
-      y = util.clamp(y + d, 1, #scale)
+      if input_mode == 1 then
+        -- Set y coordinate
+        y = util.clamp(y + d, 1, #scale)
+      end
     elseif n == 3 then
       -- Clock division
       params:delta("speed", d)
@@ -675,6 +703,14 @@ local function draw_default_params()
   screen.text("divmod: ")
   screen.level(level_value)
   screen.text(string_for_bool_param("speed_mod"))
+  
+  screen.move(label_x, 50)
+  screen.level(level_label)
+  screen.text("input:")
+  
+  screen.move(label_x, 60)
+  screen.level(level_value)
+  screen.text(input_modes[input_mode])
 end
 
 function draw_alt_params()
