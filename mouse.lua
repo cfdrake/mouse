@@ -17,6 +17,14 @@
 -- ALT + KEY3 pattern toggle
 
 -----------------------------------
+-- Runtime flags
+-----------------------------------
+
+-- Replace "false" with "true" to enable shield layout for main page.
+-- This will cause encoder 2/3 to control X/Y and encoder 1 to control clock.
+local use_shield_encoder_layout = false
+
+-----------------------------------
 -- Includes
 -----------------------------------
 
@@ -343,7 +351,7 @@ local function allocate_and_play(tx, ty)
     -- Chords + melody allocation mode
     if tx then
       -- Play chord
-      if value_for_bool_param("enables_1") then
+      if x >= 1 and x <= #scale and value_for_bool_param("enables_1") then
         note = scale[x]
         play_note(note, "x")
       end
@@ -361,7 +369,7 @@ local function allocate_and_play(tx, ty)
     
     if ty then
       -- Play melody
-      if value_for_bool_param("enables_4") then
+      if y >= 1 and y <= #scale and value_for_bool_param("enables_4") then
         note = scale[y]
         play_note(note, "y")
       end
@@ -370,7 +378,7 @@ local function allocate_and_play(tx, ty)
     -- Pairs allocation mode
     if tx then
       -- Play voice 1
-      if value_for_bool_param("enables_1") then
+      if x >= 1 and x <= #scale and value_for_bool_param("enables_1") then
         note = scale[x]
         play_note(note, "x")
       end
@@ -383,12 +391,12 @@ local function allocate_and_play(tx, ty)
     
     if ty then
       -- Play voice 2
-      if x - 3 >= 1 and value_for_bool_param("enables_3") then
+      if y - 3 >= 1 and value_for_bool_param("enables_3") then
         note = scale[y - 3]
         play_note(note, "y")
       end
       
-      if value_for_bool_param("enables_4") then
+      if y >= 1 and y <= #scale and value_for_bool_param("enables_4") then
         note = scale[y]
         play_note(note, "y")
       end
@@ -559,22 +567,42 @@ function enc(n, d)
       params:delta("pattern_index", d)
     end
   else
-    if n == 1 then
-      if input_mode == 1 then
-        -- Set x coordinate
-        x = util.clamp(x + d, 1, #scale)
-      else
-        -- Set y coordinate
-        y = util.clamp(y + d, 1, #scale)
+    if use_shield_encoder_layout then
+      if n == 1 then
+        -- Clock division
+        params:delta("speed", d)
+      elseif n == 2 then
+        if input_mode == 1 then
+          -- Set x coordinate
+          x = util.clamp(x + d, 1, #scale)
+        else
+          -- Set y coordinate
+          y = util.clamp(y + d, 1, #scale)
+        end
+      elseif n == 3 then
+        if input_mode == 1 then
+          -- Set y coordinate
+          y = util.clamp(y + d, 1, #scale)
+        end
       end
-    elseif n == 2 then
-      if input_mode == 1 then
-        -- Set y coordinate
-        y = util.clamp(y + d, 1, #scale)
+    else
+      if n == 1 then
+        if input_mode == 1 then
+          -- Set x coordinate
+          x = util.clamp(x + d, 1, #scale)
+        else
+          -- Set y coordinate
+          y = util.clamp(y + d, 1, #scale)
+        end
+      elseif n == 2 then
+        if input_mode == 1 then
+          -- Set y coordinate
+          y = util.clamp(y + d, 1, #scale)
+        end
+      elseif n == 3 then
+        -- Clock division
+        params:delta("speed", d)
       end
-    elseif n == 3 then
-      -- Clock division
-      params:delta("speed", d)
     end
   end
   
