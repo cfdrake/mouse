@@ -17,14 +17,6 @@
 -- ALT + KEY3 pattern toggle
 
 -----------------------------------
--- Runtime flags
------------------------------------
-
--- Replace "false" with "true" to enable shield layout for main page.
--- This will cause encoder 2/3 to control X/Y and encoder 1 to control clock.
-local use_shield_encoder_layout = false
-
------------------------------------
 -- Includes
 -----------------------------------
 
@@ -165,7 +157,7 @@ end
 
 local function setup_params()
   params:add_separator()
-  params:add_group("MOUSE", 26)
+  params:add_group("MOUSE", 28)
   
   params:add_separator("scale")
   params:add{type="option", id="scale_mode", name="scale mode", options=scale_names, default=11, action=function() build_scale() end}
@@ -197,6 +189,9 @@ local function setup_params()
   params:add{type="number", id="midi_channel_y", name="midi channel (y)", default=1, min=1, max=16}
   params:add{type="number", id="midi_note_length_y", name="midi note length (y)", default=100, min=1, max=1000}
   params:add{type="number", id="midi_note_probability_y", name="midi note probability (y)", default=100, min=1, max=100}
+  
+  params:add_separator("controls")
+  params:add{type="option", id="encoder_layout", name="encoder layout", options={"default", "shield"}, default=1}
   
   params:add_group("SYNTH", 14)
   
@@ -235,6 +230,7 @@ local function setup_params()
   lfo.init()
   
   params:bang()
+  params:read()
 end
 
 local function setup_clock()
@@ -567,7 +563,8 @@ function enc(n, d)
       params:delta("pattern_index", d)
     end
   else
-    if use_shield_encoder_layout then
+    if params:get("encoder_layout") == 2 then
+      -- Shield layout.
       if n == 1 then
         -- Clock division
         params:delta("speed", d)
@@ -586,6 +583,7 @@ function enc(n, d)
         end
       end
     else
+      -- Default layout.
       if n == 1 then
         if input_mode == 1 then
           -- Set x coordinate
