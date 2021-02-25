@@ -259,7 +259,7 @@ function init()
   setup_midi()
   setup_clock()
   setup_grid()
-  --setup_mouse()  -- Revist this, a bit experimental and crazy at the moment.
+  setup_mouse()  -- Revist this, a bit experimental and crazy at the moment.
   print_logo()
 end
 
@@ -444,7 +444,7 @@ end
 -----------------------------------
 
 function mouse_event(typ, code, val)
-  val = math.floor(val / 20)
+  val = util.clamp(val, -1, 1)
 
   if code == 0 then
     x = util.clamp(x + val, 1, #scale)
