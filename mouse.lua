@@ -38,6 +38,8 @@ local note_names = {"c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", 
 local speeds = {1, 2, 4, 8}
 local voice_modes = {"melody", "pairs"}
 local output_options = {"thebangs", "midi", "thebangs + midi"}
+local voice_mode_toggle = true
+local play_toggle = true
 
 -- Local sequencer state.
 local x = 1
@@ -434,13 +436,12 @@ function tick()
     
     -- Is there a better place to put this logic?
     local force = value_for_bool_param("running_pattern") and not mute
-    
     play(force)
   end
 end
 
 -----------------------------------
--- HID Input
+-- HID Mouse Input
 -----------------------------------
 
 function mouse_event(typ, code, val)
@@ -453,7 +454,103 @@ function mouse_event(typ, code, val)
   elseif code == 272 then
     mute = not mute
   end
-  
+  redraw()
+end
+
+-----------------------------------
+-- HID Keyboard Input
+-----------------------------------
+-- A S D F G  - selects patterns 1 - 5
+-- 1 2 3 4    - voice 1-4 enable/disable
+-- SPACE      - toggles playback
+-- TAB        - toggles melody/pairs mode
+-- ENTER      - random rate modulation
+-- J K L ;    - select clock division rates
+-- - P        - X transpose up/down
+-- + [        - Y transpose up/down
+
+
+-- 1 2 3 4 . . V v
+-- x y . . . . Y X
+-- . . . . . . . .
+-- . . . . . . . .
+-- c c c c . . . /
+-- . . . . . . . .
+-- o m . . . . . .
+-- p p p p p . . P
+
+-- 1 2 3 4 enable and disable voices. V and v toggle between melody and pairs mode.
+-- x y transpose the cursor downwards by the transposition interval (set on the MOUSE parameters page). X Y transpose upwards. This is useful for peprforming chord changes with patterns.
+-- c c c c switches between clock division rates, and / toggles random rate modulation.
+-- Holding o engages 1hand mode, meant to replicate the original dual keyboard/mouse interaction of Music Mouse. Holding o will cause encoder 1 to control the Y axis (instead of X), and encoder 2 to become disabled. Switch between holding and letting go of o to control Y and X, respectively. This frees up your right hand (previously using encoder 2 to navigate the Y axis) to manipulate other settings on the Grid.
+-- p p p p p select patterns, and P toggles pattern playback.
+
+function keyboard.code(code,value)
+  if value == 1 then -- 1 is down, 2 is held, 0 is release
+    --voice enable toggles
+    if code == "1" then
+      toggle_bool_param("enables_" .. 1)
+    end
+    if code == "2" then
+      toggle_bool_param("enables_" .. 2)
+    end
+    if code == "3" then
+      toggle_bool_param("enables_" .. 3)
+    end
+    if code == "4" then
+      toggle_bool_param("enables_" .. 4)
+    end
+
+    --clock division rates
+    if code == "j" then
+      params:set("speed", 1)
+    end
+    if code == "k" then
+      params:set("speed", 2)
+    end
+    if code == "l" then
+      params:set("speed", 4)
+    end
+    if code == ";" then
+      params:set("speed", 8)
+    end
+    if code == "/" then
+      params:set("speed", speeds[math.random(4)])
+    end
+
+    -- transpose x cursor up/down
+    if code == "-" then
+      x = util.clamp(x + params:get("transpose_interval"), 1, #scale)
+    end
+    if code == "p" then
+      x = util.clamp(x - params:get("transpose_interval"), 1, #scale)
+    end
+    -- transpose y cursor up/down
+    if code == "+" then
+      y = util.clamp(y + params:get("transpose_interval"), 1, #scale)    
+    end
+    if code == "[" then
+      y = util.clamp(y - params:get("transpose_interval"), 1, #scale)
+    end
+    
+    --run/stop
+    if code == "SPACE" then
+      toggle_bool_param("running_pattern")
+    end
+  end
+
+  -- toggles work on key up. toggle between melody and pairs mode
+  if value == 0 then
+    if code == "TAB" then
+      if voice_mode_toggle == true then
+        params:set("voice_mode", 1)
+      end
+      if voice_mode_toggle == false then
+        params:set("voice_mode", 2)
+      end
+      voice_mode_toggle = not voice_mode_toggle
+    end
+  end
   redraw()
 end
 
