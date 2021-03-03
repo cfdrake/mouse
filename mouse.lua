@@ -460,33 +460,17 @@ end
 -----------------------------------
 -- HID Keyboard Input
 -----------------------------------
--- A S D F G  - selects patterns 1 - 5
--- 1 2 3 4    - voice 1-4 enable/disable
--- SPACE      - toggles playback
--- TAB        - toggles melody/pairs mode
--- ENTER      - random rate modulation
--- J K L ;    - select clock division rates
--- - P        - X transpose up/down
--- + [        - Y transpose up/down
-
-
--- 1 2 3 4 . . V v
--- x y . . . . Y X
--- . . . . . . . .
--- . . . . . . . .
--- c c c c . . . /
--- . . . . . . . .
--- o m . . . . . .
--- p p p p p . . P
-
--- 1 2 3 4 enable and disable voices. V and v toggle between melody and pairs mode.
--- x y transpose the cursor downwards by the transposition interval (set on the MOUSE parameters page). X Y transpose upwards. This is useful for peprforming chord changes with patterns.
--- c c c c switches between clock division rates, and / toggles random rate modulation.
--- Holding o engages 1hand mode, meant to replicate the original dual keyboard/mouse interaction of Music Mouse. Holding o will cause encoder 1 to control the Y axis (instead of X), and encoder 2 to become disabled. Switch between holding and letting go of o to control Y and X, respectively. This frees up your right hand (previously using encoder 2 to navigate the Y axis) to manipulate other settings on the Grid.
--- p p p p p select patterns, and P toggles pattern playback.
+-- A S D F G - selects patterns 1 - 5
+-- 1 2 3 4   - voice 1-4 enable/disable
+-- SPACE     - toggles pattern playback
+-- TAB       - toggles melody/pairs mode
+-- ENTER     - random rate modulation
+-- J K L ;   - select clock division rates
+-- ↑ ↓ ← →   - transpose X/Y cursor 
+-- RIGHTSHIFT - toggle speed mod
 
 function keyboard.code(code,value)
-  if value == 1 then -- 1 is down, 2 is held, 0 is release
+   if value == 1 or value == 2 then -- 1 is down, 2 is held, 0 is release
     --voice enable toggles
     if code == "1" then
       toggle_bool_param("enables_" .. 1)
@@ -501,38 +485,68 @@ function keyboard.code(code,value)
       toggle_bool_param("enables_" .. 4)
     end
 
+    --pattern select
+    if code == "A" then
+      -- Reset pattern indices.
+      params:set("pattern_index", 1)
+      pattern_counter_x = 1
+      pattern_counter_y = 1      
+    end
+    if code == "S" then
+      params:set("pattern_index", 2)
+      pattern_counter_x = 1
+      pattern_counter_y = 1
+    end
+    if code == "D" then
+      params:set("pattern_index", 3)
+      pattern_counter_x = 1
+      pattern_counter_y = 1
+    end
+    if code == "F" then
+      params:set("pattern_index", 4)
+      pattern_counter_x = 1
+      pattern_counter_y = 1
+    end
+    if code == "G" then
+      params:set("pattern_index", 5)
+      pattern_counter_x = 1
+      pattern_counter_y = 1
+    end
+    if code == "RIGHTSHIFT" then
+      toggle_bool_param("speed_mod")
+    end
+
     --clock division rates
-    if code == "j" then
+    if code == "J" then
       params:set("speed", 1)
     end
-    if code == "k" then
+    if code == "K" then
       params:set("speed", 2)
     end
-    if code == "l" then
+    if code == "L" then
       params:set("speed", 4)
     end
-    if code == ";" then
+    if code == "SEMICOLON" then
       params:set("speed", 8)
     end
-    if code == "/" then
+    if code == "ENTER" then
       params:set("speed", speeds[math.random(4)])
     end
 
     -- transpose x cursor up/down
-    if code == "-" then
+    if code == "RIGHT" then
       x = util.clamp(x + params:get("transpose_interval"), 1, #scale)
     end
-    if code == "p" then
+    if code == "LEFT" then
       x = util.clamp(x - params:get("transpose_interval"), 1, #scale)
     end
     -- transpose y cursor up/down
-    if code == "+" then
-      y = util.clamp(y + params:get("transpose_interval"), 1, #scale)    
+    if code == "UP" then
+      y = util.clamp(y + params:get("transpose_interval"), 1, #scale)  
     end
-    if code == "[" then
+    if code == "DOWN" then
       y = util.clamp(y - params:get("transpose_interval"), 1, #scale)
     end
-    
     --run/stop
     if code == "SPACE" then
       toggle_bool_param("running_pattern")
