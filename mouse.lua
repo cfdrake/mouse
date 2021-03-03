@@ -38,8 +38,6 @@ local note_names = {"c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", 
 local speeds = {1, 2, 4, 8}
 local voice_modes = {"melody", "pairs"}
 local output_options = {"thebangs", "midi", "thebangs + midi"}
-local voice_mode_toggle = true
-local play_toggle = true
 
 -- Local sequencer state.
 local x = 1
@@ -470,7 +468,7 @@ end
 -- RIGHTSHIFT - toggle speed mod
 
 function keyboard.code(code,value)
-   if value == 1 or value == 2 then -- 1 is down, 2 is held, 0 is release
+   if value == 1 then -- 1 is down, 2 is held, 0 is release
     --voice enable toggles
     if code == "1" then
       toggle_bool_param("enables_" .. 1)
@@ -524,13 +522,13 @@ function keyboard.code(code,value)
       params:set("speed", 2)
     end
     if code == "L" then
-      params:set("speed", 4)
+      params:set("speed", 3)
     end
     if code == "SEMICOLON" then
-      params:set("speed", 8)
+      params:set("speed", 4)
     end
     if code == "ENTER" then
-      params:set("speed", speeds[math.random(4)])
+      params:set("speed", speeds[math.random(#speeds)])
     end
 
     -- transpose x cursor up/down
@@ -554,15 +552,12 @@ function keyboard.code(code,value)
   end
 
   -- toggles work on key up. toggle between melody and pairs mode
-  if value == 0 then
-    if code == "TAB" then
-      if voice_mode_toggle == true then
-        params:set("voice_mode", 1)
-      end
-      if voice_mode_toggle == false then
-        params:set("voice_mode", 2)
-      end
-      voice_mode_toggle = not voice_mode_toggle
+  if value == 0 and code == "TAB" then
+    local mode = params:get("voice_mode")
+    if mode == 1 then
+      params:set("voice_mode", 2)
+    else
+      params:set("voice_mode", 1)
     end
   end
   redraw()
