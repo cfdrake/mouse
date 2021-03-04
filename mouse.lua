@@ -157,7 +157,7 @@ end
 
 local function setup_params()
   params:add_separator()
-  params:add_group("MOUSE", 26)
+  params:add_group("MOUSE", 28)
   
   params:add_separator("scale")
   params:add{type="option", id="scale_mode", name="scale mode", options=scale_names, default=11, action=function() build_scale() end}
@@ -189,6 +189,9 @@ local function setup_params()
   params:add{type="number", id="midi_channel_y", name="midi channel (y)", default=1, min=1, max=16}
   params:add{type="number", id="midi_note_length_y", name="midi note length (y)", default=100, min=1, max=1000}
   params:add{type="number", id="midi_note_probability_y", name="midi note probability (y)", default=100, min=1, max=100}
+  
+  params:add_separator("controls")
+  params:add{type="option", id="encoder_layout", name="encoder layout", options={"default", "shield"}, default=1}
   
   params:add_group("SYNTH", 14)
   
@@ -227,6 +230,7 @@ local function setup_params()
   lfo.init()
   
   params:bang()
+  params:read()
 end
 
 local function setup_clock()
@@ -343,7 +347,7 @@ local function allocate_and_play(tx, ty)
     -- Chords + melody allocation mode
     if tx then
       -- Play chord
-      if value_for_bool_param("enables_1") then
+      if x >= 1 and x <= #scale and value_for_bool_param("enables_1") then
         note = scale[x]
         play_note(note, "x")
       end
@@ -361,7 +365,7 @@ local function allocate_and_play(tx, ty)
     
     if ty then
       -- Play melody
-      if value_for_bool_param("enables_4") then
+      if y >= 1 and y <= #scale and value_for_bool_param("enables_4") then
         note = scale[y]
         play_note(note, "y")
       end
@@ -370,7 +374,7 @@ local function allocate_and_play(tx, ty)
     -- Pairs allocation mode
     if tx then
       -- Play voice 1
-      if value_for_bool_param("enables_1") then
+      if x >= 1 and x <= #scale and value_for_bool_param("enables_1") then
         note = scale[x]
         play_note(note, "x")
       end
@@ -383,12 +387,12 @@ local function allocate_and_play(tx, ty)
     
     if ty then
       -- Play voice 2
-      if x - 3 >= 1 and value_for_bool_param("enables_3") then
+      if y - 3 >= 1 and value_for_bool_param("enables_3") then
         note = scale[y - 3]
         play_note(note, "y")
       end
       
-      if value_for_bool_param("enables_4") then
+      if y >= 1 and y <= #scale and value_for_bool_param("enables_4") then
         note = scale[y]
         play_note(note, "y")
       end
@@ -665,22 +669,44 @@ function enc(n, d)
       params:delta("pattern_index", d)
     end
   else
-    if n == 1 then
-      if input_mode == 1 then
-        -- Set x coordinate
-        x = util.clamp(x + d, 1, #scale)
-      else
-        -- Set y coordinate
-        y = util.clamp(y + d, 1, #scale)
+    if params:get("encoder_layout") == 2 then
+      -- Shield layout.
+      if n == 1 then
+        -- Clock division
+        params:delta("speed", d)
+      elseif n == 2 then
+        if input_mode == 1 then
+          -- Set x coordinate
+          x = util.clamp(x + d, 1, #scale)
+        else
+          -- Set y coordinate
+          y = util.clamp(y + d, 1, #scale)
+        end
+      elseif n == 3 then
+        if input_mode == 1 then
+          -- Set y coordinate
+          y = util.clamp(y + d, 1, #scale)
+        end
       end
-    elseif n == 2 then
-      if input_mode == 1 then
-        -- Set y coordinate
-        y = util.clamp(y + d, 1, #scale)
+    else
+      -- Default layout.
+      if n == 1 then
+        if input_mode == 1 then
+          -- Set x coordinate
+          x = util.clamp(x + d, 1, #scale)
+        else
+          -- Set y coordinate
+          y = util.clamp(y + d, 1, #scale)
+        end
+      elseif n == 2 then
+        if input_mode == 1 then
+          -- Set y coordinate
+          y = util.clamp(y + d, 1, #scale)
+        end
+      elseif n == 3 then
+        -- Clock division
+        params:delta("speed", d)
       end
-    elseif n == 3 then
-      -- Clock division
-      params:delta("speed", d)
     end
   end
   
