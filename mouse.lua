@@ -263,7 +263,7 @@ function init()
   setup_midi()
   setup_clock()
   setup_grid()
-  --setup_mouse()  -- Revist this, a bit experimental and crazy at the moment.
+  setup_mouse()  -- Revist this, a bit experimental and crazy at the moment.
   print_logo()
 end
 
@@ -438,17 +438,16 @@ function tick()
     
     -- Is there a better place to put this logic?
     local force = value_for_bool_param("running_pattern") and not mute
-    
     play(force)
   end
 end
 
 -----------------------------------
--- HID Input
+-- HID Mouse Input
 -----------------------------------
 
 function mouse_event(typ, code, val)
-  val = math.floor(val / 20)
+  val = util.clamp(val, -1, 1)
 
   if code == 0 then
     x = util.clamp(x + val, 1, #scale)
@@ -457,7 +456,114 @@ function mouse_event(typ, code, val)
   elseif code == 272 then
     mute = not mute
   end
-  
+  redraw()
+end
+
+-----------------------------------
+-- HID Keyboard Input
+-----------------------------------
+-- A S D F G - selects patterns 1 - 5
+-- 1 2 3 4   - voice 1-4 enable/disable
+-- SPACE     - toggles pattern playback
+-- TAB       - toggles melody/pairs mode
+-- ENTER     - random rate modulation
+-- J K L ;   - select clock division rates
+-- ↑ ↓ ← →   - transpose X/Y cursor 
+-- RIGHTSHIFT - toggle speed mod
+
+function keyboard.code(code,value)
+   if value == 1 then -- 1 is down, 2 is held, 0 is release
+    --voice enable toggles
+    if code == "1" then
+      toggle_bool_param("enables_" .. 1)
+    end
+    if code == "2" then
+      toggle_bool_param("enables_" .. 2)
+    end
+    if code == "3" then
+      toggle_bool_param("enables_" .. 3)
+    end
+    if code == "4" then
+      toggle_bool_param("enables_" .. 4)
+    end
+
+    --pattern select
+    if code == "A" then
+      -- Reset pattern indices.
+      params:set("pattern_index", 1)
+      pattern_counter_x = 1
+      pattern_counter_y = 1      
+    end
+    if code == "S" then
+      params:set("pattern_index", 2)
+      pattern_counter_x = 1
+      pattern_counter_y = 1
+    end
+    if code == "D" then
+      params:set("pattern_index", 3)
+      pattern_counter_x = 1
+      pattern_counter_y = 1
+    end
+    if code == "F" then
+      params:set("pattern_index", 4)
+      pattern_counter_x = 1
+      pattern_counter_y = 1
+    end
+    if code == "G" then
+      params:set("pattern_index", 5)
+      pattern_counter_x = 1
+      pattern_counter_y = 1
+    end
+    if code == "RIGHTSHIFT" then
+      toggle_bool_param("speed_mod")
+    end
+
+    --clock division rates
+    if code == "J" then
+      params:set("speed", 1)
+    end
+    if code == "K" then
+      params:set("speed", 2)
+    end
+    if code == "L" then
+      params:set("speed", 3)
+    end
+    if code == "SEMICOLON" then
+      params:set("speed", 4)
+    end
+    if code == "ENTER" then
+      params:set("speed", speeds[math.random(#speeds)])
+    end
+
+    -- transpose x cursor up/down
+    if code == "RIGHT" then
+      x = util.clamp(x + params:get("transpose_interval"), 1, #scale)
+    end
+    if code == "LEFT" then
+      x = util.clamp(x - params:get("transpose_interval"), 1, #scale)
+    end
+    -- transpose y cursor up/down
+    if code == "UP" then
+      y = util.clamp(y + params:get("transpose_interval"), 1, #scale)  
+    end
+    if code == "DOWN" then
+      y = util.clamp(y - params:get("transpose_interval"), 1, #scale)
+    end
+    --run/stop
+    if code == "SPACE" then
+      toggle_bool_param("running_pattern")
+    end
+  end
+
+  -- toggles work on key up. toggle between melody and pairs mode
+  if value == 0 and code == "TAB" then
+    local mode = params:get("voice_mode")
+    if mode == 1 then
+      params:set("voice_mode", 2)
+    else
+      params:set("voice_mode", 1)
+    end
+  end
   redraw()
 end
 
