@@ -473,7 +473,7 @@ local function play_midi_note(note, axis)
 end
 
 local function play_wsyn_note(note)
-  crow.send("ii.wsyn.play_note(".. note ..", " .. pset_wsyn_vel .. ")")
+  crow.send("ii.wsyn.play_note(".. note/12 ..", " .. pset_wsyn_vel .. ")")
 end
 
 
