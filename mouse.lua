@@ -476,7 +476,6 @@ local function play_wsyn_note(note)
   crow.send("ii.wsyn.play_note(".. note/12 ..", " .. pset_wsyn_vel .. ")")
 end
 
-
 local function play_note(note, axis)
   local output_mode = params:get("output_mode")
   -- "thebangs", "midi", "thebangs + midi", "w/syn", "thebangs + midi + w/syn"
