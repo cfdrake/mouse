@@ -37,7 +37,7 @@ local scale_names = {}
 local note_names = {"c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", "b"}
 local speeds = {1, 2, 4, 8}
 local voice_modes = {"melody", "pairs"}
-local output_options = {"thebangs", "midi", "w/syn", "thebangs + midi", "tb + m + w/syn"}
+local output_options = {"thebangs", "midi", "w/syn", "thebangs + midi", "tb + md + w/syn"}
 
 -- Local sequencer state.
 local x = 1
@@ -736,15 +736,14 @@ function keyboard.code(code,value)
     if code == "SPACE" then
       toggle_bool_param("running_pattern")
     end
-  end
-
-  -- toggles work on key up. toggle between melody and pairs mode
-  if value == 0 and code == "TAB" then
-    local mode = params:get("voice_mode")
-    if mode == 1 then
-      params:set("voice_mode", 2)
-    else
-      params:set("voice_mode", 1)
+    -- toggle between melody and pairs mode
+    if code == "TAB" then
+      local mode = params:get("voice_mode")
+      if mode == 1 then
+        params:set("voice_mode", 2)
+      else
+        params:set("voice_mode", 1)
+      end
     end
   end
   redraw()
