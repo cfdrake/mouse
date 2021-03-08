@@ -37,7 +37,7 @@ local scale_names = {}
 local note_names = {"c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", "b"}
 local speeds = {1, 2, 4, 8}
 local voice_modes = {"melody", "pairs"}
-local output_options = {"thebangs", "midi", "thebangs + midi", "w/syn", "thebangs + midi + w/syn"}
+local output_options = {"thebangs", "midi", "w/syn", "thebangs + midi", "tb + m + w/syn"}
 
 -- Local sequencer state.
 local x = 1
@@ -473,21 +473,21 @@ local function play_midi_note(note, axis)
 end
 
 local function play_wsyn_note(note)
-  crow.send("ii.wsyn.play_note(".. note/12 ..", " .. pset_wsyn_vel .. ")")
+  crow.send("ii.wsyn.play_note(".. (note-48)/12 ..", " .. pset_wsyn_vel .. ")")
 end
 
 local function play_note(note, axis)
   local output_mode = params:get("output_mode")
-  -- "thebangs", "midi", "thebangs + midi", "w/syn", "thebangs + midi + w/syn"
+  -- "thebangs", "midi", "w/syn", "thebangs + midi", "tb + m + w/syn"
   if output_mode == 1 then
     play_engine_note(note)
   elseif output_mode == 2 then
     play_midi_note(note, axis)
   elseif output_mode == 3 then
-    play_engine_note(note)
-    play_midi_note(note, axis)
-  elseif output_mode == 4 then
     play_wsyn_note(note)
+  elseif output_mode == 4 then
+    play_engine_note(note)
+    play_midi_note(note, axis)    
   elseif output_mode == 5 then
     play_engine_note(note)
     play_midi_note(note, axis)
