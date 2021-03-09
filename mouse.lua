@@ -34,7 +34,6 @@ local hs = include("lib/mouse_halfsecond")
 -- Scale and params value helpers.
 local scale = {}
 local scale_names = {}
-local note_names = {"c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", "b"}
 local speeds = {1, 2, 4, 8}
 local voice_modes = {"melody", "pairs"}
 local output_options = {"thebangs", "midi", "w/syn", "thebangs + midi", "tb + md + w/syn"}
@@ -172,7 +171,9 @@ local function setup_params()
   
   params:add_separator("scale")
   params:add{type="option", id="scale_mode", name="scale mode", options=scale_names, default=11, action=function() build_scale() end}
-  params:add{type="option", id="root_note", name="root note", options=note_names, default=1, action=function() build_scale() end}
+  params:add{type = "number", id = "root_note", name = "root note",
+    min = 0, max = 127, default = 60, formatter = function(param) return MusicUtil.note_num_to_name(param:get(), true) end,
+  action = function() build_scale() end}
   params:add{type="number", id="transpose_interval", name="transposition interval", min=1, max=12, default=3}
   
   params:add_separator("clock")
@@ -247,7 +248,7 @@ end
 --w/syn support
 
 function wsyn_add_params()
-  params:add_group("w/syn",11)
+  params:add_group("w/syn",12)
   params:add {
     type = "option",
     id = "wsyn_ar_mode",
@@ -347,12 +348,7 @@ function wsyn_add_params()
       pset_wsyn_lpg_symmetry = val
     end
   }
-  --params:add{
-  --  type = "trigger",
-  --  id = "wsyn_trentvis",
-  --  name = "Trentvision >>>",
-  --}
-  --[[params:add{
+  params:add{
     type = "trigger",
     id = "wsyn_pluckylog",
     name = "Pluckylogger >>>",
@@ -366,7 +362,7 @@ function wsyn_add_params()
       params:set("wsyn_lpg_time", math.random(-28, -5)/10)
       params:set("wsyn_lpg_symmetry", math.random(-50, -30)/10)
     end
-  }]]
+  }
   params:add{
     type = "trigger",
     id = "wsyn_randomize",
@@ -535,13 +531,13 @@ local function allocate_and_play(tx, ty)
         play_note(note, "x")
       end
       
-      if x + 2 <= #scale and value_for_bool_param("enables_2") then
-        note = scale[x + 2]
+      if x + 3 <= #scale and value_for_bool_param("enables_2") then
+        note = scale[x + 3]
         play_note(note, "x")
       end
       
-      if x - 3 >= 1 and value_for_bool_param("enables_3") then
-        note = scale[x - 3]
+      if x + 5 <= #scale and value_for_bool_param("enables_3") then
+        note = scale[x + 5]
         play_note(note, "x")
       end
     end
@@ -570,8 +566,8 @@ local function allocate_and_play(tx, ty)
     
     if ty then
       -- Play voice 2
-      if y - 3 >= 1 and value_for_bool_param("enables_3") then
-        note = scale[y - 3]
+      if y + 3 <= #scale and value_for_bool_param("enables_3") then
+        note = scale[y + 3]
         play_note(note, "y")
       end
       
@@ -984,7 +980,7 @@ local function draw_default_params()
   screen.level(level_label)
   screen.text("x: ")
   screen.level(level_value)
-  screen.text(MusicUtil.note_num_to_name(scale[x]))
+  screen.text(MusicUtil.note_num_to_name(scale[x]),true)
   
   if running_pattern then
     screen.text(patterns[pattern_index]["x"][pattern_counter_x])
@@ -994,7 +990,7 @@ local function draw_default_params()
   screen.level(level_label)
   screen.text("y: ")
   screen.level(level_value)
-  screen.text(MusicUtil.note_num_to_name(scale[y]))
+  screen.text(MusicUtil.note_num_to_name(scale[y]),true)
   
   if running_pattern then
     screen.text(patterns[pattern_index]["y"][pattern_counter_y])
