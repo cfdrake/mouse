@@ -531,13 +531,13 @@ local function allocate_and_play(tx, ty)
         play_note(note, "x")
       end
       
-      if x + 3 <= #scale and value_for_bool_param("enables_2") then
-        note = scale[x + 3]
+      if x + 2 <= #scale and value_for_bool_param("enables_2") then
+        note = scale[x + 2]
         play_note(note, "x")
       end
       
-      if x + 5 <= #scale and value_for_bool_param("enables_3") then
-        note = scale[x + 5]
+      if x - 3 >= 1 and x - 3 <= #scale and value_for_bool_param("enables_3") then
+        note = scale[x - 3]
         play_note(note, "x")
       end
     end
@@ -566,8 +566,8 @@ local function allocate_and_play(tx, ty)
     
     if ty then
       -- Play voice 2
-      if y + 3 <= #scale and value_for_bool_param("enables_3") then
-        note = scale[y + 3]
+      if y - 3 >= 1 and y - 3 <= #scale and value_for_bool_param("enables_3") then
+        note = scale[y - 3]
         play_note(note, "y")
       end
       
@@ -980,7 +980,7 @@ local function draw_default_params()
   screen.level(level_label)
   screen.text("x: ")
   screen.level(level_value)
-  screen.text(MusicUtil.note_num_to_name(scale[x]),true)
+  screen.text(MusicUtil.note_num_to_name(scale[x]))
   
   if running_pattern then
     screen.text(patterns[pattern_index]["x"][pattern_counter_x])
@@ -990,7 +990,7 @@ local function draw_default_params()
   screen.level(level_label)
   screen.text("y: ")
   screen.level(level_value)
-  screen.text(MusicUtil.note_num_to_name(scale[y]),true)
+  screen.text(MusicUtil.note_num_to_name(scale[y]))
   
   if running_pattern then
     screen.text(patterns[pattern_index]["y"][pattern_counter_y])
