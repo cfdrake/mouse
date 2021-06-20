@@ -40,8 +40,7 @@ local voice_modes = {"melody", "pairs"}
 local output_options = {"thebangs", "midi", "thebangs + midi"}
 
 -- Local sequencer state.
-local x = 1
-local y = 1
+
 local last_x = 1
 local last_y = 1
 local mute = false
@@ -68,7 +67,9 @@ local lfo_targets = {
   "delay",
   "delay_rate",
   "delay_feedback",
-  "delay_pan"
+  "delay_pan",
+  "x",
+  "y"
 }
 
 -- Drawing vars.
@@ -137,8 +138,8 @@ local function build_scale()
   
   scale = MusicUtil.generate_scale_of_length(root_note, string.lower(MusicUtil.SCALES[scale_mode].name), 127)
   
-  x = math.floor(#scale/2)
-  y = math.floor(#scale/2)
+  params:set("x", math.floor(#scale/2))
+  params:set("y", math.floor(#scale/2))
   
   last_x = x
   last_y = y
@@ -157,7 +158,7 @@ end
 
 local function setup_params()
   params:add_separator()
-  params:add_group("MOUSE", 28)
+  params:add_group("MOUSE", 30)
   
   params:add_separator("scale")
   params:add{type="option", id="scale_mode", name="scale mode", options=scale_names, default=11, action=function() build_scale() end}
@@ -192,6 +193,10 @@ local function setup_params()
   
   params:add_separator("controls")
   params:add{type="option", id="encoder_layout", name="encoder layout", options={"default", "shield"}, default=1}
+  -- params:add{type="number", id="x", name="x", default=1, min=1, max=127/2}
+  -- params:add{type="number", id="y", name="y", default=1, min=1, max=127/2}
+  params:add{type="number", id="x", name="x", default=1, min=1, max=54}
+  params:add{type="number", id="y", name="y", default=1, min=1, max=54}
   
   params:add_group("SYNTH", 14)
   
@@ -313,8 +318,8 @@ local function play_note(note, axis)
 end
 
 local function allocate_and_play(tx, ty)
-  local x = x
-  local y = y
+  local x = params:get("x")
+  local y = params:get("y")
   
   local running_pattern = value_for_bool_param("running_pattern")
   local pattern_index = params:get("pattern_index")
@@ -450,9 +455,9 @@ function mouse_event(typ, code, val)
   val = util.clamp(val, -1, 1)
 
   if code == 0 then
-    x = util.clamp(x + val, 1, #scale)
+    params:set("x", util.clamp(params.get("x") + val, 1, #scale))
   elseif code == 1 then
-    y = util.clamp(y - val, 1, #scale)
+    params:set("y", util.clamp(params.get("y") + val, 1, #scale))
   elseif code == 272 then
     mute = not mute
   end
@@ -537,17 +542,17 @@ function keyboard.code(code,value)
 
     -- transpose x cursor up/down
     if code == "RIGHT" then
-      x = util.clamp(x + params:get("transpose_interval"), 1, #scale)
+      params:set("x", util.clamp(params:get("x") + params:get("transpose_interval"), 1, #scale))
     end
     if code == "LEFT" then
-      x = util.clamp(x - params:get("transpose_interval"), 1, #scale)
+      params:set("x", util.clamp(params:get("x") - params:get("transpose_interval"), 1, #scale))
     end
     -- transpose y cursor up/down
     if code == "UP" then
-      y = util.clamp(y + params:get("transpose_interval"), 1, #scale)  
+      params:set("y", util.clamp(params:get("y") + params:get("transpose_interval"), 1, #scale)) 
     end
     if code == "DOWN" then
-      y = util.clamp(y - params:get("transpose_interval"), 1, #scale)
+      params:set("y", util.clamp(params:get("y") - params:get("transpose_interval"), 1, #scale))
     end
     --run/stop
     if code == "SPACE" then
@@ -597,13 +602,13 @@ function grid_key(_x, _y, z)
       end
     elseif _y == 2 then
       if _x == 1 then
-        x = util.clamp(x - params:get("transpose_interval"), 1, #scale)
+        params:set("x", util.clamp(params:get("x") - params:get("transpose_interval"), 1, #scale))
       elseif _x == 2 then
-        y = util.clamp(y - params:get("transpose_interval"), 1, #scale)
+        params:set("y", util.clamp(params:get("y") - params:get("transpose_interval"), 1, #scale))
       elseif _x == 7 then
-        y = util.clamp(y + params:get("transpose_interval"), 1, #scale)
+        params:set("y", util.clamp(params:get("y") + params:get("transpose_interval"), 1, #scale))
       elseif _x == 8 then
-        x = util.clamp(x + params:get("transpose_interval"), 1, #scale)
+        params:set("x", util.clamp(params:get("x") + params:get("transpose_interval"), 1, #scale))
       end
     elseif _y == 5 then
       if _x >= 1 and _x <= #speeds then
@@ -677,15 +682,15 @@ function enc(n, d)
       elseif n == 2 then
         if input_mode == 1 then
           -- Set x coordinate
-          x = util.clamp(x + d, 1, #scale)
+          params:set("x", util.clamp(params:get("x") + d, 1, #scale))
         else
           -- Set y coordinate
-          y = util.clamp(y + d, 1, #scale)
+          params:set("y", util.clamp(params:get("y") + d, 1, #scale))
         end
       elseif n == 3 then
         if input_mode == 1 then
           -- Set y coordinate
-          y = util.clamp(y + d, 1, #scale)
+          params:set("y", util.clamp(params:get("y") + d, 1, #scale))
         end
       end
     else
@@ -693,15 +698,16 @@ function enc(n, d)
       if n == 1 then
         if input_mode == 1 then
           -- Set x coordinate
-          x = util.clamp(x + d, 1, #scale)
+          params:set("x", util.clamp(params:get("x") + d, 1, #scale))
         else
           -- Set y coordinate
           y = util.clamp(y + d, 1, #scale)
+          params:set("y", util.clamp(params:get("y" + d, 1, #scale)))
         end
       elseif n == 2 then
         if input_mode == 1 then
           -- Set y coordinate
-          y = util.clamp(y + d, 1, #scale)
+          params:set("y", util.clamp(params:get("y") + d, 1, #scale))
         end
       elseif n == 3 then
         -- Clock division
@@ -770,8 +776,8 @@ end
 local function draw_cursor()
   local cursor_size = 63
   local cursor_box_size = 4
-  local cursor_x = 1 + (x/#scale) * cursor_size
-  local cursor_y = 1 + cursor_size - (y/#scale) * cursor_size
+  local cursor_x = 1 + (params:get("x")/#scale) * cursor_size
+  local cursor_y = 1 + cursor_size - (params:get("y")/#scale) * cursor_size
   
   -- Draw vertical line
   screen.level(1)
@@ -802,7 +808,7 @@ local function draw_default_params()
   screen.level(level_label)
   screen.text("x: ")
   screen.level(level_value)
-  screen.text(MusicUtil.note_num_to_name(scale[x]))
+  screen.text(MusicUtil.note_num_to_name(scale[params:get("x")]))
   
   if running_pattern then
     screen.text(patterns[pattern_index]["x"][pattern_counter_x])
@@ -812,7 +818,7 @@ local function draw_default_params()
   screen.level(level_label)
   screen.text("y: ")
   screen.level(level_value)
-  screen.text(MusicUtil.note_num_to_name(scale[y]))
+  screen.text(MusicUtil.note_num_to_name(scale[params:get("y")]))
   
   if running_pattern then
     screen.text(patterns[pattern_index]["y"][pattern_counter_y])
@@ -945,6 +951,10 @@ function lfo.process()
         params:set("delay_feedback", lfo.scale(lfo[i].slope, -1, 1, 0, 1))
       elseif target == 10 then
         params:set("delay_pan", lfo[i].slope)
+      elseif target == 11 then
+        params:set("x", math.floor(lfo.scale(lfo[i].slope, -1, 1, params:get_range("x")[1], params:get_range("x")[2])))
+      elseif target == 12 then
+        params:set("y", math.floor(lfo.scale(lfo[i].slope, -1, 1, params:get_range("y")[1], params:get_range("y")[2])))
       end
     end
   end
