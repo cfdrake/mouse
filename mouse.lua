@@ -34,10 +34,9 @@ local hs = include("lib/mouse_halfsecond")
 -- Scale and params value helpers.
 local scale = {}
 local scale_names = {}
-local note_names = {"c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", "b"}
 local speeds = {1, 2, 4, 8}
 local voice_modes = {"melody", "pairs"}
-local output_options = {"thebangs", "midi", "thebangs + midi"}
+local output_options = {"thebangs", "midi", "w/syn", "thebangs + midi", "tb + md + w/syn"}
 
 -- Local sequencer state.
 local x = 1
@@ -86,6 +85,17 @@ local patterns = {
   { x = { 0, 1, 4, 6 }, y = { 0, 5, 3, 4, 2, 1, 8 } },
   { x = { 0, 6, 0, 3, 3, 2, 2, 1 }, y = { 0, 2, 12, 14, 4, 2, 2 } },
 }
+
+-- w/syn variables
+local pset_wsyn_curve = 0
+local pset_wsyn_ramp = 0
+local pset_wsyn_fm_index = 0
+local pset_wsyn_fm_env = 0
+local pset_wsyn_fm_ratio_num = 0
+local pset_wsyn_fm_ratio_den = 0
+local pset_wsyn_lpg_time = 0
+local pset_wsyn_lpg_symmetry = 0
+local pset_wsyn_vel = 0
 
 -----------------------------------
 -- Helpers
@@ -161,7 +171,9 @@ local function setup_params()
   
   params:add_separator("scale")
   params:add{type="option", id="scale_mode", name="scale mode", options=scale_names, default=11, action=function() build_scale() end}
-  params:add{type="option", id="root_note", name="root note", options=note_names, default=1, action=function() build_scale() end}
+  params:add{type = "number", id = "root_note", name = "root note",
+    min = 0, max = 127, default = 60, formatter = function(param) return MusicUtil.note_num_to_name(param:get(), true) end,
+  action = function() build_scale() end}
   params:add{type="number", id="transpose_interval", name="transposition interval", min=1, max=12, default=3}
   
   params:add_separator("clock")
@@ -233,6 +245,158 @@ local function setup_params()
   params:read()
 end
 
+--w/syn support
+
+function wsyn_add_params()
+  params:add_group("w/syn",12)
+  params:add {
+    type = "option",
+    id = "wsyn_ar_mode",
+    name = "AR mode",
+    options = {"off", "on"},
+    default = 2,
+    action = function(val) 
+      crow.send("ii.wsyn.ar_mode(".. (val-1) ..")")
+    end
+  }
+  params:add {
+    type = "control",
+    id = "wsyn_vel",
+    name = "Velocity",
+    controlspec = controlspec.new(0, 5, "lin", 0, 2, "v"),
+    action = function(val) 
+      pset_wsyn_vel = val
+    end
+  }
+  params:add {
+    type = "control",
+    id = "wsyn_curve",
+    name = "Curve",
+    controlspec = controlspec.new(-5, 5, "lin", 0, 0, "v"),
+    action = function(val) 
+      crow.send("ii.wsyn.curve(" .. val .. ")") 
+      pset_wsyn_curve = val
+    end
+  }
+  params:add {
+    type = "control",
+    id = "wsyn_ramp",
+    name = "Ramp",
+    controlspec = controlspec.new(-5, 5, "lin", 0, 0, "v"),
+    action = function(val) 
+      crow.send("ii.wsyn.ramp(" .. val .. ")") 
+      pset_wsyn_ramp = val
+    end
+  }
+  params:add {
+    type = "control",
+    id = "wsyn_fm_index",
+    name = "FM index",
+    controlspec = controlspec.new(0, 5, "lin", 0, 0, "v"),
+    action = function(val) 
+      crow.send("ii.wsyn.fm_index(" .. val .. ")") 
+      pset_wsyn_fm_index = val
+    end
+  }
+  params:add {
+    type = "control",
+    id = "wsyn_fm_env",
+    name = "FM env",
+    controlspec = controlspec.new(-5, 5, "lin", 0, 0, "v"),
+    action = function(val) 
+      crow.send("ii.wsyn.fm_env(" .. val .. ")") 
+      pset_wsyn_fm_env = val
+    end
+  }
+  params:add {
+    type = "control",
+    id = "wsyn_fm_ratio_num",
+    name = "FM ratio numerator",
+    controlspec = controlspec.new(1, 20, "lin", 1, 2),
+    action = function(val) 
+      crow.send("ii.wsyn.fm_ratio(" .. val .. "," .. params:get("wsyn_fm_ratio_den") .. ")") 
+      pset_wsyn_fm_ratio_num = val
+    end
+  }
+  params:add {
+    type = "control",
+    id = "wsyn_fm_ratio_den",
+    name = "FM ratio denominator",
+    controlspec = controlspec.new(1, 20, "lin", 1, 1),
+    action = function(val) 
+      crow.send("ii.wsyn.fm_ratio(" .. params:get("wsyn_fm_ratio_num") .. "," .. val .. ")") 
+      pset_wsyn_fm_ratio_den = val
+    end
+  }
+  params:add {
+    type = "control",
+    id = "wsyn_lpg_time",
+    name = "LPG time",
+    controlspec = controlspec.new(-5, 5, "lin", 0, 0, "v"),
+    action = function(val) 
+      crow.send("ii.wsyn.lpg_time(" .. val .. ")") 
+      pset_wsyn_lpg_time = val
+    end
+  }
+  params:add {
+    type = "control",
+    id = "wsyn_lpg_symmetry",
+    name = "LPG symmetry",
+    controlspec = controlspec.new(-5, 5, "lin", 0, 0, "v"),
+    action = function(val) 
+      crow.send("ii.wsyn.lpg_symmetry(" .. val .. ")") 
+      pset_wsyn_lpg_symmetry = val
+    end
+  }
+  params:add{
+    type = "trigger",
+    id = "wsyn_pluckylog",
+    name = "Pluckylogger >>>",
+    action = function()
+      params:set("wsyn_curve", math.random(-40, 40)/10)
+      params:set("wsyn_ramp", math.random(-5, 5)/10)
+      params:set("wsyn_fm_index", math.random(-50, 50)/10)
+      params:set("wsyn_fm_env", math.random(-50, 40)/10)
+      params:set("wsyn_fm_ratio_num", math.random(1, 4))
+      params:set("wsyn_fm_ratio_den", math.random(1, 4))
+      params:set("wsyn_lpg_time", math.random(-28, -5)/10)
+      params:set("wsyn_lpg_symmetry", math.random(-50, -30)/10)
+    end
+  }
+  params:add{
+    type = "trigger",
+    id = "wsyn_randomize",
+    name = "Randomize all >>>",
+    action = function()
+      params:set("wsyn_curve", math.random(-50, 50)/10)
+      params:set("wsyn_ramp", math.random(-50, 50)/10)
+      params:set("wsyn_fm_index", math.random(0, 50)/10)
+      params:set("wsyn_fm_env", math.random(-50, 50)/10)
+      params:set("wsyn_fm_ratio_num", math.random(1, 20))
+      params:set("wsyn_fm_ratio_den", math.random(1, 20))
+      params:set("wsyn_lpg_time", math.random(-50, 50)/10)
+      params:set("wsyn_lpg_symmetry", math.random(-50, 50)/10)
+    end
+  }
+  params:add{
+    type = "trigger",
+    id = "wsyn_init",
+    name = "Init",
+    action = function()
+      params:set("wsyn_curve", pset_wsyn_curve)
+      params:set("wsyn_ramp", pset_wsyn_ramp)
+      params:set("wsyn_fm_index", pset_wsyn_fm_index)
+      params:set("wsyn_fm_env", pset_wsyn_fm_env)
+      params:set("wsyn_fm_ratio_num", pset_wsyn_fm_ratio_num)
+      params:set("wsyn_fm_ratio_den", pset_wsyn_fm_ratio_den)
+      params:set("wsyn_lpg_time", pset_wsyn_lpg_time)
+      params:set("wsyn_lpg_symmetry", pset_wsyn_lpg_symmetry)
+      params:set("wsyn_vel", pset_wsyn_vel)
+    end
+  }
+  params:hide("wsyn_init")
+end
+
 local function setup_clock()
   clock_id = clock.run(tick)
 end
@@ -263,8 +427,13 @@ function init()
   setup_midi()
   setup_clock()
   setup_grid()
-  setup_mouse()  -- Revist this, a bit experimental and crazy at the moment.
+  setup_mouse()
   print_logo()
+  --w/syn
+  crow.send("ii.wsyn.ar_mode(1)")
+  wsyn_add_params()
+  params:bang()
+  params:set("wsyn_init",1)
 end
 
 -----------------------------------
@@ -299,16 +468,26 @@ local function play_midi_note(note, axis)
   end
 end
 
+local function play_wsyn_note(note)
+  crow.send("ii.wsyn.play_note(".. (note-48)/12 ..", " .. pset_wsyn_vel .. ")")
+end
+
 local function play_note(note, axis)
   local output_mode = params:get("output_mode")
-  
+  -- "thebangs", "midi", "w/syn", "thebangs + midi", "tb + m + w/syn"
   if output_mode == 1 then
     play_engine_note(note)
   elseif output_mode == 2 then
     play_midi_note(note, axis)
   elseif output_mode == 3 then
+    play_wsyn_note(note)
+  elseif output_mode == 4 then
+    play_engine_note(note)
+    play_midi_note(note, axis)    
+  elseif output_mode == 5 then
     play_engine_note(note)
     play_midi_note(note, axis)
+    play_wsyn_note(note)
   end
 end
 
@@ -357,7 +536,7 @@ local function allocate_and_play(tx, ty)
         play_note(note, "x")
       end
       
-      if x - 3 >= 1 and value_for_bool_param("enables_3") then
+      if x - 3 >= 1 and x - 3 <= #scale and value_for_bool_param("enables_3") then
         note = scale[x - 3]
         play_note(note, "x")
       end
@@ -387,7 +566,7 @@ local function allocate_and_play(tx, ty)
     
     if ty then
       -- Play voice 2
-      if y - 3 >= 1 and value_for_bool_param("enables_3") then
+      if y - 3 >= 1 and y - 3 <= #scale and value_for_bool_param("enables_3") then
         note = scale[y - 3]
         play_note(note, "y")
       end
@@ -553,15 +732,14 @@ function keyboard.code(code,value)
     if code == "SPACE" then
       toggle_bool_param("running_pattern")
     end
-  end
-
-  -- toggles work on key up. toggle between melody and pairs mode
-  if value == 0 and code == "TAB" then
-    local mode = params:get("voice_mode")
-    if mode == 1 then
-      params:set("voice_mode", 2)
-    else
-      params:set("voice_mode", 1)
+    -- toggle between melody and pairs mode
+    if code == "TAB" then
+      local mode = params:get("voice_mode")
+      if mode == 1 then
+        params:set("voice_mode", 2)
+      else
+        params:set("voice_mode", 1)
+      end
     end
   end
   redraw()
