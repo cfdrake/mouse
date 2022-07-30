@@ -639,19 +639,19 @@ function grid_tilt(_grid_id, _x, _y)
   end
 
   local median = 130
-  local xd = 0
-  local yd = 0
+  local o_margin = 10
 
-  if (median - _x) > 10 then
-    xd = 1
-  elseif (median - _x) < -10 then
-    xd = -1
+  local xd = (median - _x)
+  local yd = (median - _y)
+  if math.abs(xd) < o_margin then
+    xd = 0
+  else
+    xd = math.floor(xd / 10)
   end
-
-  if (median - _y) > 10 then
-    yd = 1
-  elseif (median - _y) < -10 then
-    yd = -1
+  if math.abs(yd) < o_margin then
+    yd = 0
+  else
+    yd = math.floor(yd / 10)
   end
 
   if xd ~= 0 or yd ~= 0 then
