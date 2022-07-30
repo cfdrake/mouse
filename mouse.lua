@@ -245,6 +245,8 @@ end
 local function setup_grid()
   g = grid.connect()
   g.key = grid_key
+  g.tilt = grid_tilt
+  g:tilt_enable(0, 1)
   grid_redraw()
 end
 
@@ -626,6 +628,39 @@ function grid_key(_x, _y, z)
   
   redraw()
   grid_redraw()
+end
+
+local last_tilt_ts = nil
+
+function grid_tilt(_grid_id, _x, _y)
+  local now = os.clock()
+  if last_tilt_ts ~= nil and (now - last_tilt_ts) < 0.005 then
+    return
+  end
+
+  local median = 130
+  local xd = 0
+  local yd = 0
+
+  if (median - _x) > 10 then
+    xd = 1
+  elseif (median - _x) < -10 then
+    xd = -1
+  end
+
+  if (median - _y) > 10 then
+    yd = 1
+  elseif (median - _y) < -10 then
+    yd = -1
+  end
+
+  if xd ~= 0 or yd ~= 0 then
+    x = util.clamp(x + xd, 1, #scale)
+    y = util.clamp(y + yd, 1, #scale)
+    redraw()
+  end
+
+  last_tilt_ts = os.clock()
 end
 
 function grid_redraw()
