@@ -35,8 +35,8 @@ function sc.init()
   softcut.filter_lp(1, 0);
   softcut.filter_bp(1, 1.0);
   softcut.filter_rq(1, 2.0);
-
-  params:add_separator("delay")
+  
+  params:add_separator("sep_delay", "delay")
   
   params:add{id="delay", name="delay", type="control", 
     controlspec=controlspec.new(0,1,'lin',0,0.0,""),
