@@ -156,7 +156,7 @@ local function setup_midi()
 end
 
 local function setup_params()
-  params:add_separator()
+  params:add_separator("sep_mouse", "mouse")
   params:add_group("MOUSE", 28)
   
   params:add_separator("scale")
